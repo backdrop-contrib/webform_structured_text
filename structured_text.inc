@@ -274,24 +274,34 @@ function _webform_help_structured_text($section) {
  * Implements _webform_analysis_component.
  */
 function _webform_analysis_structured_text($component, $sids = array(), $single = FALSE) {
-  $placeholders = count($sids) ? array_fill(0, count($sids), "'%s'") : array();
-  $sidfilter = count($sids) ? " AND sid in (" . implode(",", $placeholders) . ")" : "";
-  $query = 'SELECT sid, data FROM {webform_submitted_data} WHERE nid = %d AND cid = %d ' . $sidfilter;
+
+  $query = db_select('webform_submitted_data', 'wsd', array('fetch' => PDO::FETCH_ASSOC))
+    ->fields('wsd', array('sid', 'data',))
+    ->condition('nid', $component['nid'])
+    ->condition('cid', $component['cid']);
+
+  if ( count($sids) ) {
+    $query->condition('sid', $sids, 'IN');
+  }
   $nonblanks = 0;
   $submissions = 0;
   $responses = array();
 
-  $result = db_query($query, array_merge(array($component['nid'], $component['cid']), $sids));
-  while ($data = db_fetch_array($result)) {
-    if (drupal_strlen(trim($data['data'])) > 0) {
+  $result = $query->execute();
+  foreach ( $result as $data ) {
+    if ( drupal_strlen(trim($data['data'])) > 0 ) {
       $nonblanks++;
       if ( $component['extra']['analysis_display'] ) {
         if ( $component['extra']['analysis_display_identifying'] == '' ) {
           $identifier = $data['sid'];
         }
         else {
-          $identifier = db_result(db_query( "SELECT data FROM {webform_submitted_data} WHERE nid = %d AND cid = %d AND sid = %d LIMIT 1",
-                  $component['nid'], $component['extra']['analysis_display_identifying'], $data['sid']));
+          $identifier = db_query("SELECT data FROM {webform_submitted_data} WHERE nid = :nid AND cid = :cid AND sid = :sid LIMIT 1",
+                  array(
+                    ':nid' => $component['nid'],
+                    ':cid' => $component['extra']['analysis_display_identifying'],
+                    ':sid' => $data['sid'],
+                  ))->fetchField();
         }
       $responses[] = array('<div class="webform-response">'.l($identifier,'node/'.$component['nid'].'/submission/'.$data['sid']) . ': ' .
         webform_structured_text_format_value($component['extra']['mask'], $data['data']) . '</div>', '');

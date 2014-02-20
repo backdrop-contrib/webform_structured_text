@@ -1,6 +1,6 @@
 name = "Webform Structured Text"
 description = "A text component that specified a structured format."
-core = 6.x
+core = 7.x
 package = Webform
 
 dependencies[] = webform
