@@ -439,7 +439,7 @@ function webform_structured_text_field_description($component) {
     if ( !empty($output) ) {
       $last = array_pop($output);
       $output = ( !empty($output) ? implode(', ', $output) . ', ' . t('and') . ' ' . $last : $last );
-      $description .= ' <strong>' . t('Input format:') . '</strong> ' . $output;
+      $description .= ' <strong>' . t('Input format:') . '</strong> ' . $output . '.';
     }
   }
   return $description;
