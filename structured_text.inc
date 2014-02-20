@@ -15,6 +15,7 @@ function _webform_defaults_structured_text() {
     'weight' => 0,
     'extra' => array(
       'mask' => '',
+      'auto_skip' => TRUE,
       'mask_description' => FALSE,
       'description' => '',
       'analysis_display' => FALSE,
@@ -55,8 +56,16 @@ function _webform_edit_structured_text($component) {
           ^a - outputs the character "a"<br>
           ^^ - outputs the character "^"<br><br>
           all other characters in the mask will be rendered as mark-up.'),
-    '#weight' => -3,
+    '#weight' => -3.4,
     '#required' => TRUE,
+  );
+  $form['extra']['auto_skip'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Auto-skip to next chunk'),
+    '#default_value' => $component['extra']['auto_skip'],
+    '#description' => t('Check this box to have the cursor automatically move to
+          the next chunk in the field when the previous one is filled.' ),
+    '#weight' => -3.3,
   );
   $form['extra']['mask_description'] = array(
     '#type' => 'checkbox',
@@ -66,7 +75,7 @@ function _webform_edit_structured_text($component) {
           description area.  This will appear appended to the description you specify
           below (if any).  If you don\'t profide a description below and this box
           is checked, the mask description will still show.' ),
-    '#weight' => -3,
+    '#weight' => -3.2,
   );
   $form['extra']['analysis_display'] = array(
     '#type' => 'checkbox',
@@ -115,6 +124,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#theme_wrappers' => array('webform_element_wrapper'),
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
+    '#auto_skip' => $component['extra']['auto_skip'],
   );
 
   if (isset($value)) {
@@ -130,6 +140,8 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
  * in the mask.
  */
 function webform_structured_text_expand_field($element) {
+  static $js_added = FALSE;
+  $js_ids = array();
   foreach ( $element['#mask'] as $part => $details ) {
     if ( in_array($details['type'], array('9', 'a', 'x',)) ) {
       $element['part-' . $part] = array(
@@ -137,8 +149,11 @@ function webform_structured_text_expand_field($element) {
         '#size' => $details['length'],
         '#maxlength' => $details['length'],
         '#default_value' => $element['#default_value'][$part],
-        '#attributes' => array('class' => 'structured-text part-' . $part),
+        '#attributes' => array(
+          'class' => 'structured-text part-' . $part,
+        ),
       );
+      $js_ids[] = $part;
     }
     else {
       $element['part-' . $part] = array(
@@ -146,6 +161,22 @@ function webform_structured_text_expand_field($element) {
         '#value' => $details['value'],
         '#attributes' => array('class' => 'structured-text part-' . $part),
       );
+    }
+  }
+  if ( $element['#auto_skip'] ) {
+    foreach ( $js_ids as $index => $id ) {
+      if ( isset($js_ids[$index + 1]) ) {
+        $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump('{$element['#id']}-part-$id',
+          '{$element['#id']}-part-{$js_ids[$index + 1]}',{$element['part-' . $id]['#maxlength']});";
+      }
+    }
+    if ( !$js_added ) {
+      $script = "function webform_structured_text_jump(var1, var2, len) {
+                if ( event.keyCode != 9 && event.keyCode != 16 && document.getElementById(var1).value.length >= len )
+                  document.getElementById(var2).focus();
+              }";
+      drupal_add_js($script, 'inline');
+      $js_added = TRUE;
     }
   }
   return $element;
