@@ -1,0 +1,4 @@
+name = "Webform Structured Text"
+description = "A text component that specified a structured format."
+package = Webform
+core = 6.x
