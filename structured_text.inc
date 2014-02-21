@@ -317,7 +317,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
     '#field_suffix' => $component['extra']['field_suffix'],
     '#component' => $component,
     '#format' => $format,
-    '#value' => isset($value[0]) ? webform_structured_text_format_value($component['extra']['mask'], $value[0] ) : '',
+    '#value' => !empty($value[0]) ? webform_structured_text_format_value($component['extra']['mask'], $value[0], $format) : '',
   );
 }
 
