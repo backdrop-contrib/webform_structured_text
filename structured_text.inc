@@ -17,6 +17,7 @@ function _webform_defaults_structured_text() {
       'mask' => '',
       'auto_skip' => TRUE,
       'mask_description' => FALSE,
+      'mask_regex' => '',
       'description' => '',
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
@@ -77,6 +78,31 @@ function _webform_edit_structured_text($component) {
           is checked, the mask description will still show.' ),
     '#weight' => -3.2,
   );
+  $form['extra']['mask_regex'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Mask RegEx validation'),
+    '#default_value' => $component['extra']['mask_regex'],
+    '#description' => t('If you want to further validate the pattern of a chunk, you
+          can do that by specifying a RegEx expression here that will be used to
+          further validate the user\'s input.  Each validation should be on a separate
+          line, in the form<br><br>
+          <em>chunk-number</em>|<em>error-message</em>|<em>regex-expression</em><br><br>
+          with each portion separated by a vertical bar / pipe character, where:<br>
+          - <em>chunk-number</em> is an integer corresponding to the ordinal position
+          of the chunk,<br>
+          - <em>error-message</em> is the error message to display if the user input
+          for that chunk doesn\'t match the RegEx expression, and<br>
+          - <em>regex-expression</em> is the expression to match against.<br><br>
+          For example, to validate a Canadian postal code, which has the format
+          letter-number-letter number-letter-number (eg., M5B 2J7), if you wanted
+          two chunks, the mask would be "xxx xxx", with validations being<br><br>
+          1|First part of postal code must be letter-number-letter.|/[A-Z][0-9][A-Z]/<br>
+          2|Second part of postal code must be number-letter-number.|/[0-9][A-Z][0-9]/<br><br>
+          You do not have to specify a validation for every chunk.  For more on
+          RegEx expressions and preg_match (which is what is used), see !link.',
+          array('!link' => '<a href="http://ca2.php.net/preg_match" target=_blank>http://ca2.php.net/preg_match</a>',)),
+    '#weight' => -3.1,
+  );
   $form['extra']['analysis_display'] = array(
     '#type' => 'checkbox',
     '#title' => t('Show responses in analysis'),
@@ -124,6 +150,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#theme_wrappers' => array('webform_element_wrapper'),
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
+    '#mask_regex' => $component['extra']['mask_regex'],
     '#auto_skip' => $component['extra']['auto_skip'],
   );
 
@@ -203,6 +230,15 @@ function webform_validate_structured_text($element, $form_state) {
   $numb_empty = $numb_chunks - $numb_not_empty;
   $missing_chunks = ( $numb_chunks != $numb_not_empty && $numb_chunks != $numb_empty );
   // Now evaluate each text field.
+  $mask_regex_lines = explode("\n", $element['#mask_regex']);
+  $mask_regex = array();
+  foreach ( $mask_regex_lines as $line ) {
+    list($chunk, $message, $regex) = explode('|', $line, 3);
+    $mask_regex[$chunk] = array(
+      'message' => $message,
+      'regex' => $regex,
+    );
+  }
   $component = 0;  // Used to point the user to the correct chunk of the whole input field in error messages.
   foreach ( $chunks as $part => $value ) {
     $component++;
@@ -244,6 +280,13 @@ function webform_validate_structured_text($element, $form_state) {
                 '!element' => $element['#title'],
                 '!component' => $component . _webform_structured_text_ordinal_suffix($component),
               )));
+    }
+    elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 ) &&
+            !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
+      if ( !preg_match(trim($mask_regex[$component]['regex']), $value) ) {
+        $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
+        form_set_error($component_field, check_plain($mask_regex[$component]['message']));
+      }
     }
   }
 }
