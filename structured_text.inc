@@ -190,7 +190,7 @@ function webform_structured_text_expand_field($element) {
       );
     }
   }
-  if ( $element['#auto_skip'] ) {
+  if ( count($js_ids) > 1 && $element['#auto_skip'] ) {
     foreach ( $js_ids as $index => $id ) {
       if ( isset($js_ids[$index + 1]) ) {
         $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump('{$element['#id']}-part-$id',
@@ -198,10 +198,10 @@ function webform_structured_text_expand_field($element) {
       }
     }
     if ( !$js_added ) {
-      $script = "function webform_structured_text_jump(var1, var2, len) {
+      $script = 'function webform_structured_text_jump(var1, var2, len) {
                 if ( event.keyCode != 9 && event.keyCode != 16 && document.getElementById(var1).value.length >= len )
                   document.getElementById(var2).focus();
-              }";
+              }';
       drupal_add_js($script, 'inline');
       $js_added = TRUE;
     }
