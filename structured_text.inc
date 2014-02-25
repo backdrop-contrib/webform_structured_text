@@ -201,14 +201,18 @@ function webform_structured_text_expand_field($element) {
     foreach ( $js_ids as $index => $id ) {
       if ( isset($js_ids[$index + 1]) ) {
         $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump('{$element['#id']}-part-$id',
-          '{$element['#id']}-part-{$js_ids[$index + 1]}',{$element['part-' . $id]['#maxlength']});";
+          '{$element['#id']}-part-{$js_ids[$index + 1]}');";
       }
     }
     if ( !$js_added ) {
-      $script = 'function webform_structured_text_jump(var1, var2, len) {
-                if ( event.keyCode != 9 && event.keyCode != 16 && document.getElementById(var1).value.length >= len )
-                  document.getElementById(var2).focus();
-              }';
+      $script = "function webform_structured_text_jump(from_id, to_id) {
+                if ( event.keyCode != 9 && event.keyCode != 16 ) {
+                  fromfield = $('#' + from_id);
+                  if ( fromfield.val().length >= fromfield.attr('maxlength') ) {
+                    $('#' + to_id).focus().select();
+                  }
+                }
+              }";
       drupal_add_js($script, 'inline');
       $js_added = TRUE;
     }
