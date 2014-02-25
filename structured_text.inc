@@ -56,7 +56,11 @@ function _webform_edit_structured_text($component) {
           ^x - outputs the character "x"<br>
           ^a - outputs the character "a"<br>
           ^^ - outputs the character "^"<br><br>
-          all other characters in the mask will be rendered as mark-up.'),
+          all other characters in the mask will be rendered as mark-up around / between
+          the textboxes for the portions of the mask that are denoted by the digit nine,
+          or lower-case characters "x" or "a".  If you want a certain combination of
+          letters and numbers, use "x" as your mask character, and specify a RegEx
+          pattern(s) below to check the pattern.'),
     '#weight' => -3.4,
     '#required' => TRUE,
   );
@@ -64,8 +68,11 @@ function _webform_edit_structured_text($component) {
     '#type' => 'checkbox',
     '#title' => t('Auto-skip to next chunk'),
     '#default_value' => $component['extra']['auto_skip'],
-    '#description' => t('Check this box to have the cursor automatically move to
-          the next chunk in the field when the previous one is filled.' ),
+    '#description' => t('Individual chunks of the field are rendered as text boxes
+          with markup in between for parts of the mask that are not the digit nine,
+          or lower-case characters "x" or "a".  Check this box to have the cursor
+          automatically move to the next chunk in the field when the previous one
+          is filled.' ),
     '#weight' => -3.3,
   );
   $form['extra']['mask_description'] = array(
@@ -170,7 +177,7 @@ function webform_structured_text_expand_field($element) {
   static $js_added = FALSE;
   $js_ids = array();
   foreach ( $element['#mask'] as $part => $details ) {
-    if ( in_array($details['type'], array('9', 'a', 'x',)) ) {
+    if ( $details['type'] != 'markup' ) {
       $element['part-' . $part] = array(
         '#type' => 'textfield',
         '#size' => $details['length'],
@@ -220,7 +227,7 @@ function webform_validate_structured_text($element, $form_state) {
   // Gather the actual input.
   $chunks = array();
   foreach ( $element['#mask'] as $part => $details ) {
-    if ( in_array($details['type'], array('9', 'a', 'x',)) ) {
+    if ( $details['type'] != 'markup' ) {
       $chunks[$part] = $element['part-' . $part]['#value'];
     }
   }
@@ -296,7 +303,7 @@ function webform_validate_structured_text($element, $form_state) {
  */
 function theme_webform_structured_text($element) {
   $output = '<div class="webform-container-inline">';
-  foreach (element_children($element) as $key) {
+  foreach ( element_children($element) as $key ) {
     $output .= drupal_render($element[$key]);
   }
   $output .= '</div>';
@@ -327,7 +334,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
  */
 function _webform_submit_structured_text($component, $value) {
   $combined_value = '';
-  foreach ( $value as $input) {
+  foreach ( $value as $input ) {
     $combined_value .= $input;
   }
   return $combined_value;
@@ -337,7 +344,7 @@ function _webform_submit_structured_text($component, $value) {
  * Implements _webform_help_component().
  */
 function _webform_help_structured_text($section) {
-  switch ($section) {
+  switch ( $section ) {
     case 'admin/settings/webform#structured_text':
       return t('Allows creation of stuctured / input-masked text.');
   }
@@ -370,14 +377,14 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
           $identifier = $data['sid'];
         }
         else {
-          $identifier = db_query("SELECT data FROM {webform_submitted_data} WHERE nid = :nid AND cid = :cid AND sid = :sid LIMIT 1",
+          $identifier = db_query('SELECT data FROM {webform_submitted_data} WHERE nid = :nid AND cid = :cid AND sid = :sid LIMIT 1',
                   array(
                     ':nid' => $component['nid'],
                     ':cid' => $component['extra']['analysis_display_identifying'],
                     ':sid' => $data['sid'],
                   ))->fetchField();
         }
-      $responses[] = array('<div class="webform-response">'.l($identifier,'node/'.$component['nid'].'/submission/'.$data['sid']) . ': ' .
+      $responses[] = array('<div class="webform-response">' . l($identifier, "node/{$component['nid']}/submission/{$data['sid']}") . ': ' .
         webform_structured_text_format_value($component['extra']['mask'], $data['data']) . '</div>', '');
       }
     }
@@ -399,21 +406,21 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
  * Implements _webform_table_component().
  */
 function _webform_table_structured_text($component, $value) {
-  return (empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0]) );
+  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0]) );
 }
 
 /**
  * Implements _webform_cvs_headers_component.
  */
 function _webform_csv_headers_structured_text($component, $export_options) {
-  return array('', '', $component['name']);
+  return array('', '', $component['name'],);
 }
 
 /**
  * Implements _webform_cvs_data_component().
  */
 function _webform_csv_data_structured_text($component, $export_options, $value) {
-  return (empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0], 'text') );
+  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0], 'text') );
 }
 
 /**
@@ -428,7 +435,7 @@ function webform_structured_text_parse_mask($mask) {
   $where = '';
   $part = -1;
   for ( $i = 0 ; $i < $mask_length ; $i++ ) {
-    $type = ( in_array($mask[$i], array('9', 'a', 'x',)) ? $mask[$i] : 'b' );
+    $type = ( in_array($mask[$i], array('9', 'a', 'x',)) ? $mask[$i] : 'markup' );
     if ( $where != $type ) {
       $where = $type;
       $mask_array[++$part] = array(
@@ -438,7 +445,7 @@ function webform_structured_text_parse_mask($mask) {
       );
     }
     $mask_array[$part]['length']++;
-    if ( $type == 'b' ) {
+    if ( $type == 'markup' ) {
       if ( $mask[$i] == '^' ) {
         if ( $i + 1 < $mask_length && in_array($mask[$i + 1], array('9', 'a', 'x', '^')) ) {
           $mask_array[$part]['value'] .= $mask[++$i];
@@ -462,7 +469,7 @@ function webform_structured_text_parse_value($mask, $value) {
   $value_array = array();
   $start = 0;
   foreach ( $mask_array as $part => $details ) {
-    if ( in_array($details['type'], array('9', 'a', 'x',)) ) {
+    if ( $details['type'] != 'markup' ) {
       $value_array[$part] = drupal_substr($value, $start, $details['length']);
       $start += $details['length'];
     }
@@ -483,7 +490,7 @@ function webform_structured_text_format_value($mask, $value, $format = 'html') {
   $output = '';
   $start = 0;
   foreach ( $mask_array as $details ) {
-    if ( in_array($details['type'], array('9', 'a', 'x',)) ) {
+    if ( $details['type'] != 'markup' ) {
       $output .= substr($value, $start, $details['length']);
       $start += $details['length'];
     }
