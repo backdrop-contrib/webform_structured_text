@@ -200,12 +200,12 @@ function webform_structured_text_expand_field($element) {
   if ( count($js_ids) > 1 && $element['#auto_skip'] ) {
     foreach ( $js_ids as $index => $id ) {
       if ( isset($js_ids[$index + 1]) ) {
-        $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump('{$element['#id']}-part-$id',
+        $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump(event, '{$element['#id']}-part-$id',
           '{$element['#id']}-part-{$js_ids[$index + 1]}');";
       }
     }
     if ( !$js_added ) {
-      $script = "function webform_structured_text_jump(from_id, to_id) {
+      $script = "function webform_structured_text_jump(event, from_id, to_id) {
                 if ( event.keyCode != 9 && event.keyCode != 16 ) {
                   fromfield = $('#' + from_id);
                   if ( fromfield.val().length >= fromfield.attr('maxlength') ) {
