@@ -48,20 +48,35 @@ function _webform_edit_structured_text($component) {
     '#title' => t('Input mask'),
     '#default_value' => $component['extra']['mask'],
     '#description' => t('Enter an input mask.  Use the following special characters to represent
-          parts of the mask.<br><br>
-          9 - only a digit can be input<br>
-          x - any character can be input<br>
-          a - only letters can be input<br>
-          ^9 - outputs the character "9"<br>
-          ^x - outputs the character "x"<br>
-          ^a - outputs the character "a"<br>
-          ^^ - outputs the character "^"<br><br>
+          parts of the mask.
+          <ul>
+          <li>9 - only a digit can be input</li>
+          <li>x - any non-blank character can be input</li>
+          <li>a - only letters can be input</li>
+          <li>r{<em>n</em>{,<em>s</em>}} - any characters with the maximum length
+                  of the field specified by <em>n</em> where <em>n</em> is an integer
+                  greater than 0.  If <em>n</em> is omitted, the maximum length
+                  will be 1.  Optionally, a display size <em>s</em> for the
+                  field can also be specified by following the maximum length with
+                  a comma and an integer value greater than zero.  For example,
+                  "r20,10" creates a field maximum 20 characters long with a display
+                  length of 10 characters.  Other than for maximum length, this
+                  mask relies completely on a regex to validate the field\'s input.
+                  Thus, if you don\'t specify a regex expression, any characters
+                  can be entered into the field, and the field can be left blank,
+                  even if the component is marked as required.</li>
+          <li>^9 - outputs the character "9"</li>
+          <li>^x - outputs the character "x"</li>
+          <li>^a - outputs the character "a"</li>
+          <li>^r - outputs the character "r"</li>
+          <li>^^ - outputs the character "^"</li>
+          </ul>
           all other characters in the mask will be rendered as mark-up around / between
           the textboxes for the portions of the mask that are denoted by the digit nine,
-          or lower-case characters "x" or "a".  If you want a certain combination of
-          letters and numbers, use "x" as your mask character, and specify a RegEx
+          or lower-case characters "x", "a", or "r".  If you want a certain combination of
+          letters and numbers, use "x" or "r" as your mask character, and specify a RegEx
           pattern(s) below to check the pattern.'),
-    '#weight' => -3.4,
+    '#weight' => -3.9,
     '#required' => TRUE,
   );
   $form['extra']['auto_skip'] = array(
@@ -73,7 +88,7 @@ function _webform_edit_structured_text($component) {
           or lower-case characters "x" or "a".  Check this box to have the cursor
           automatically move to the next chunk in the field when the previous one
           is filled.' ),
-    '#weight' => -3.3,
+    '#weight' => -3.8,
   );
   $form['extra']['mask_description'] = array(
     '#type' => 'checkbox',
@@ -83,7 +98,7 @@ function _webform_edit_structured_text($component) {
           description area.  This will appear appended to the description you specify
           below (if any).  If you don\'t profide a description below and this box
           is checked, the mask description will still show.' ),
-    '#weight' => -3.2,
+    '#weight' => -3.7,
   );
   $form['extra']['mask_regex'] = array(
     '#type' => 'textarea',
@@ -105,10 +120,27 @@ function _webform_edit_structured_text($component) {
           two chunks, the mask would be "xxx xxx", with validations being<br><br>
           1|First part of postal code must be letter-number-letter.|/[A-Z][0-9][A-Z]/<br>
           2|Second part of postal code must be number-letter-number.|/[0-9][A-Z][0-9]/<br><br>
+          As a second example, if you wanted a North American style phone number with optional
+          extension, the mask would be "(999) 999-9999  E^xt: r10,5" (note the escaped "x"
+          in "Ext"), with the validation being<br><br>
+          4|Please specify only digits for the extension.|/^[0-9]*$/<br><br>
           You do not have to specify a validation for every chunk.  For more on
           RegEx expressions and preg_match (which is what is used), see !link.',
           array('!link' => '<a href="http://ca2.php.net/preg_match" target=_blank>http://ca2.php.net/preg_match</a>',)),
-    '#weight' => -3.1,
+    '#weight' => -3.6,
+  );
+  $form['extra']['css_classes'] = array(
+    '#type' => 'textfield',
+    '#title' => t('CSS Class(es)'),
+    '#default_value' => $component['extra']['css_classes'],
+    '#description' => t('You can specify CSS class(es) here if you like to help with theming.
+          Separate each class with a space.  Class(es) will be applied to the highest-level
+          &lt;div&gt; for the component.  Each part of the component will have classes
+          "structured-text" and "part-<em>n</em>" where <em>n</em> is the part of the
+          mask with <em>n</em> starting at zero.  Markup portions of the mask also have
+          a class "markup".'),
+    '#weight' => -3.5,
+    '#required' => FALSE,
   );
   $form['extra']['analysis_display'] = array(
     '#type' => 'checkbox',
@@ -151,7 +183,9 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#process' => array('webform_structured_text_expand_field',),
     '#pre_render' => array('webform_element_title_display'),
     '#post_render' => array('webform_element_wrapper'),
-    '#prefix' => '<div class="webform-component-' . $component['type'] . '" id="webform-component-' . $component['form_key'] . '">',
+    '#prefix' => '<div class="webform-component-' . $component['type'] .
+            ( !empty($component['extra']['css_classes']) ? ' ' . check_plain($component['extra']['css_classes']) : '' ) .
+            '" id="webform-component-' . $component['form_key'] . '">',
     '#suffix' => '</div>',
     '#theme' => 'webform_structured_text',
     '#theme_wrappers' => array('webform_element_wrapper'),
@@ -180,7 +214,7 @@ function webform_structured_text_expand_field($element) {
     if ( $details['type'] != 'markup' ) {
       $element['part-' . $part] = array(
         '#type' => 'textfield',
-        '#size' => $details['length'],
+        '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
         '#maxlength' => $details['length'],
         '#default_value' => $element['#default_value'][$part],
         '#attributes' => array(
@@ -193,7 +227,8 @@ function webform_structured_text_expand_field($element) {
       $element['part-' . $part] = array(
         '#type' => 'markup',
         '#value' => $details['value'],
-        '#attributes' => array('class' => 'structured-text part-' . $part),
+        '#prefix' => '<div class="structured-text markup part-' . $part . '">',
+        '#suffix' => '</div>',
       );
     }
   }
@@ -258,7 +293,7 @@ function webform_validate_structured_text($element, $form_state) {
       case '9':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && (
-                        !is_numeric($value) || $value < 0  ||
+                        preg_match('/[^0-9]/', $value)  ||
                         strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = '!element field !component component must be 1 digit.';
           $error_n = '!element field !component component must be @count digits.';
@@ -282,6 +317,9 @@ function webform_validate_structured_text($element, $form_state) {
           $error_n = '!element field !component component must be @count characters.';
         }
         break;
+
+      case 'r': // r types are completely evaluated by the regex expression for validity
+        break;
     }
     if ( $error_1 ) {
       $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
@@ -292,7 +330,7 @@ function webform_validate_structured_text($element, $form_state) {
                 '!component' => $component . _webform_structured_text_ordinal_suffix($component),
               )));
     }
-    elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 ) &&
+    elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 || $element['#mask'][$part]['type'] == 'r' ) &&
             !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
       if ( !preg_match(trim($mask_regex[$component]['regex']), $value) ) {
         $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
@@ -439,7 +477,7 @@ function webform_structured_text_parse_mask($mask) {
   $where = '';
   $part = -1;
   for ( $i = 0 ; $i < $mask_length ; $i++ ) {
-    $type = ( in_array($mask[$i], array('9', 'a', 'x',)) ? $mask[$i] : 'markup' );
+    $type = ( in_array($mask[$i], array('9', 'a', 'x', 'r',)) ? $mask[$i] : 'markup' );
     if ( $where != $type ) {
       $where = $type;
       $mask_array[++$part] = array(
@@ -448,15 +486,38 @@ function webform_structured_text_parse_mask($mask) {
         'value' => '',
       );
     }
-    $mask_array[$part]['length']++;
+    if ( $type == 'r' ) { // digits after an 'r' mask give max length and size if not followed by a comma and other digits
+      if ( preg_match('/[1-9]/', $mask[$i+1]) ) { // there's at least one digit
+        $i++;
+        while ( $i < $mask_length && preg_match('/[0-9]/', $mask[$i]) ) {
+          $mask_array[$part]['length'] .= $mask[$i++];
+        }
+        $mask_array[$part]['length'] = (int) $mask_array[$part]['length'];
+        if ( $i < $mask_length && $mask[$i] == ',' &&
+                $i + 1 < $mask_length && preg_match('/[1-9]/', $mask[$i + 1]) ) { // a number after the commas specifies the display size of the field
+          $i++;
+          while ( $i < $mask_length && preg_match('/[0-9]/', $mask[$i]) ) {
+            $mask_array[$part]['size'] .= $mask[$i++];
+          }
+          $mask_array[$part]['size'] = (int) $mask_array[$part]['size'];
+        }
+      }
+      else {
+        $mask_array[$part]['length'] = 1;
+      }
+    }
+    else {
+      $mask_array[$part]['length']++;
+    }
     if ( $type == 'markup' ) {
       if ( $mask[$i] == '^' ) {
-        if ( $i + 1 < $mask_length && in_array($mask[$i + 1], array('9', 'a', 'x', '^')) ) {
+        if ( $i + 1 < $mask_length && in_array($mask[$i + 1], array('9', 'a', 'x', 'r', '^')) ) {
           $mask_array[$part]['value'] .= $mask[++$i];
         }
       }
-      else
+      else {
         $mask_array[$part]['value'] .= $mask[$i];
+      }
     }
   }
   return $mask_array;
@@ -525,6 +586,7 @@ function webform_structured_text_field_description($component) {
           $output[] = format_plural($details['length'], '1 alpha (a-z) character', '@count alpha (a-z) characters');
           break;
         case 'x':
+        case 'r':
           $output[] = format_plural($details['length'], '1 character', '@count characters');
           break;
         default:
