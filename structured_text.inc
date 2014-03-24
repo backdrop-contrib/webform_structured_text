@@ -21,6 +21,7 @@ function _webform_defaults_structured_text() {
       'description' => '',
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
+      'private' => FALSE,
     ),
   );
 }
@@ -30,9 +31,10 @@ function _webform_defaults_structured_text() {
  */
 function _webform_theme_structured_text() {
   return array(
-    'webform_structured_text' => array(
-      'arguments' => array('element' => NULL),
+    'webform_structured_text_element' => array(
+      'render element' => 'element',
       'file' => 'structured_text.inc',
+      'path' => drupal_get_path('module', 'webform_structured_text'),
     ),
   );
 }
@@ -132,7 +134,7 @@ function _webform_edit_structured_text($component) {
   $form['extra']['css_classes'] = array(
     '#type' => 'textfield',
     '#title' => t('CSS Class(es)'),
-    '#default_value' => $component['extra']['css_classes'],
+    '#default_value' => ( isset($component['extra']['css_classes']) ? $component['extra']['css_classes'] : '' ),
     '#description' => t('You can specify CSS class(es) here if you like to help with theming.
           Separate each class with a space.  Class(es) will be applied to the highest-level
           &lt;div&gt; for the component.  Each part of the component will have classes
@@ -151,8 +153,9 @@ function _webform_edit_structured_text($component) {
     '#parents' => array('extra', 'analysis_display'),
   );
   $other_components = array('' => t('Submission ID'));
-  $result = db_query('SELECT cid, form_key FROM {webform_component} WHERE nid = %d ORDER BY weight, form_key', $component['nid']);
-  while ( $c = db_fetch_object($result) ) {
+  $result = db_query('SELECT cid, form_key FROM {webform_component} WHERE nid = :nid ORDER BY weight, form_key',
+          array(':nid' => $component['nid'],));
+  foreach ( $result as $c ) {
     $other_components[$c->cid] = $c->form_key;
   }
   $form['extra']['analysis_display_identifying'] = array(
@@ -216,9 +219,9 @@ function webform_structured_text_expand_field($element) {
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
         '#maxlength' => $details['length'],
-        '#default_value' => $element['#default_value'][$part],
+        '#default_value' => ( isset($element['#default_value'][$part]) ? $element['#default_value'][$part] : '' ),
         '#attributes' => array(
-          'class' => 'structured-text part-' . $part,
+          'class' => array('structured-text part-' . $part,),
         ),
       );
       $js_ids[] = $part;
@@ -341,14 +344,12 @@ function webform_validate_structured_text($element, $form_state) {
 }
 
 /**
- * Theme a webform date element.
+ * Theme a webform structured text element.
  */
-function theme_webform_structured_text($element) {
-  $output = '<div class="webform-container-inline">';
-  foreach ( element_children($element) as $key ) {
-    $output .= drupal_render($element[$key]);
-  }
-  $output .= '</div>';
+function theme_webform_structured_text_element($variables) {
+drupal_set_message('<pre>' . print_r($variables,1).'</pre>');
+  $element = $variables['element'];
+  $output = '<div class="webform-container-inline">' . drupal_render_children($element) . '</div>';
   return theme('form_element', $element, $output);
 }
 
@@ -496,6 +497,7 @@ function webform_structured_text_parse_mask($mask) {
         if ( $i < $mask_length && $mask[$i] == ',' &&
                 $i + 1 < $mask_length && preg_match('/[1-9]/', $mask[$i + 1]) ) { // a number after the commas specifies the display size of the field
           $i++;
+          $mask_array[$part]['size'] = '';
           while ( $i < $mask_length && preg_match('/[0-9]/', $mask[$i]) ) {
             $mask_array[$part]['size'] .= $mask[$i++];
           }
