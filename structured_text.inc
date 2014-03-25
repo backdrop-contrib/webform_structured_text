@@ -244,13 +244,14 @@ function webform_structured_text_expand_field($element) {
     }
     if ( !$js_added ) {
       $script = "function webform_structured_text_jump(event, from_id, to_id) {
-                if ( event.keyCode != 9 && event.keyCode != 16 ) {
-                  fromfield = $('#' + from_id);
-                  if ( fromfield.val().length >= fromfield.attr('maxlength') ) {
-                    $('#' + to_id).focus().select();
+                  var $ = jQuery;
+                  if ( event.keyCode != 9 && event.keyCode != 16 ) {
+                    fromfield = $('#' + from_id);
+                    if ( fromfield.val().length >= fromfield.attr('maxlength') ) {
+                      $('#' + to_id).focus().select();
+                    }
                   }
-                }
-              }";
+                }";
       drupal_add_js($script, 'inline');
       $js_added = TRUE;
     }
