@@ -31,7 +31,7 @@ function _webform_defaults_structured_text() {
  */
 function _webform_theme_structured_text() {
   return array(
-    'webform_structured_text_element' => array(
+    'webform_structured_text' => array(
       'render element' => 'element',
       'file' => 'structured_text.inc',
       'path' => drupal_get_path('module', 'webform_structured_text'),
@@ -191,7 +191,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
             '" id="webform-component-' . $component['form_key'] . '">',
     '#suffix' => '</div>',
     '#theme' => 'webform_structured_text',
-    '#theme_wrappers' => array('webform_element_wrapper'),
+    '#theme_wrappers' => array('webform_element'),
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
     '#mask_regex' => $component['extra']['mask_regex'],
@@ -229,7 +229,7 @@ function webform_structured_text_expand_field($element) {
     else {
       $element['part-' . $part] = array(
         '#type' => 'markup',
-        '#value' => $details['value'],
+        '#markup' => $details['value'],
         '#prefix' => '<div class="structured-text markup part-' . $part . '">',
         '#suffix' => '</div>',
       );
@@ -346,11 +346,10 @@ function webform_validate_structured_text($element, $form_state) {
 /**
  * Theme a webform structured text element.
  */
-function theme_webform_structured_text_element($variables) {
-drupal_set_message('<pre>' . print_r($variables,1).'</pre>');
+function theme_webform_structured_text($variables) {
   $element = $variables['element'];
   $output = '<div class="webform-container-inline">' . drupal_render_children($element) . '</div>';
-  return theme('form_element', $element, $output);
+  return $output;
 }
 
 /**
