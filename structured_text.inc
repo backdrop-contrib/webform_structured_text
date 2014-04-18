@@ -10,7 +10,7 @@ function _webform_defaults_structured_text() {
   return array(
     'name' => '',
     'form_key' => NULL,
-    'required' => 0,
+    'mandatory' => 0,
     'pid' => 0,
     'weight' => 0,
     'extra' => array(
@@ -181,7 +181,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#title' => $filter ? _webform_filter_xss($component['name']) : $component['name'],
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#weight' => $component['weight'],
-    '#required' => $component['required'],
+    '#required' => $component['mandatory'],
     '#description'   => $filter ? _webform_filter_descriptions($description) : $description,
     '#process' => array('webform_structured_text_expand_field',),
     '#pre_render' => array('webform_element_title_display'),
