@@ -4,13 +4,40 @@
  **/
 
 /**
+ * function to handle difference between version 3 and 4 of Webform.
+ * @param string $prop The property needed.
+ * @return string The property name to use elsewhere.
+ */
+function _webform_structured_text_get_wf_property($prop = 'required') {
+  $info = system_get_info('module', 'webform');
+  preg_match('/^[0-9]+\.x\-([0-9]+)\..*$/', $info['version'], $version);
+  $properties = array(
+    'required' => array(
+      '3' => 'mandatory',
+      '4' => 'required',
+    ),
+    'filter_xss' => array(
+      '3' => '_webform_filter_xss',
+      '4' => 'webform_filter_xss',
+    ),
+    'filter_desc' => array(
+      '3' => '_webform_filter_descriptions',
+      '4' => 'webform_filter_descriptions',
+    ),
+  );
+  if ( $prop == 'version' ) return $version[1];
+  return $properties[$prop][$version[1]];
+}
+
+
+/**
  * Implements _webform_defaults_component().
  */
 function _webform_defaults_structured_text() {
   return array(
     'name' => '',
     'form_key' => NULL,
-    'mandatory' => 0,
+    _webform_structured_text_get_wf_property('required') => 0,
     'pid' => 0,
     'weight' => 0,
     'extra' => array(
@@ -175,14 +202,16 @@ function _webform_edit_structured_text($component) {
  */
 function _webform_render_structured_text($component, $value = NULL, $filter = FALSE) {
   $description = webform_structured_text_field_description($component);
+  $xss_filter = _webform_structured_text_get_wf_property('filter_xss');
+  $desc_filter = _webform_structured_text_get_wf_property('filter_desc');
   $form_item = array(
     '#type' => 'webform_structured_text',
     '#input' => TRUE,
-    '#title' => $filter ? _webform_filter_xss($component['name']) : $component['name'],
+    '#title' => $filter ? $xss_filter($component['name']) : $component['name'],
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#weight' => $component['weight'],
-    '#required' => $component['mandatory'],
-    '#description'   => $filter ? _webform_filter_descriptions($description) : $description,
+    '#required' => $component[_webform_structured_text_get_wf_property('required')],
+    '#description'   => $filter ? $desc_filter($description) : $description,
     '#process' => array('webform_structured_text_expand_field',),
     '#pre_render' => array('webform_element_title_display'),
     '#post_render' => array('webform_element_wrapper'),
