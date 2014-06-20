@@ -206,9 +206,17 @@ function _webform_structured_text_regex_validate($element, &$form_state) {
         $parts = explode('|', $line);
         if ( count($parts) != 3 ) {
           form_error($element, t('Line !line of the Mask Regex Validation is ill-formed.
-                  There must be parts to each line, separaged by vertical bars / pipes.  Please
+                  There must be three parts to each line, separaged by vertical bars / pipes.  Please
                   review the detailed instructions for the Mask Regex Validation and try again.',
                   array('!line' => $line_number + 1,)));
+        }
+        else {
+          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+            form_error($element,t('Line !line of Mask Regex Validation must start with
+                    a positive integer signifying the chunk number of the mask.  "!value" is
+                    not a valid chunk number.',
+                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
+          }
         }
       }
     }
