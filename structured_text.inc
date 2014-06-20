@@ -157,6 +157,7 @@ function _webform_edit_structured_text($component) {
           RegEx expressions and preg_match (which is what is used), see !link.',
           array('!link' => '<a href="http://ca2.php.net/preg_match" target=_blank>http://ca2.php.net/preg_match</a>',)),
     '#weight' => -3.6,
+    '#element_validate' => array('_webform_structured_text_regex_validate',),
   );
   $form['extra']['css_classes'] = array(
     '#type' => 'textfield',
@@ -195,6 +196,23 @@ function _webform_edit_structured_text($component) {
     '#parents' => array('extra', 'analysis_display_identifying'),
   );
   return $form;
+}
+
+function _webform_structured_text_regex_validate($element, &$form_state) {
+  if ( !empty($element['#value']) ) {
+    $lines = explode("\n", $element['#value']);
+    foreach ( $lines as $line_number => $line ) {
+      if ( !empty($line) ) {
+        $parts = explode('|', $line);
+        if ( count($parts) != 3 ) {
+          form_error($element, t('Line !line of the Mask Regex Validation is ill-formed.
+                  There must be parts to each line, separaged by vertical bars / pipes.  Please
+                  review the detailed instructions for the Mask Regex Validation and try again.',
+                  array('!line' => $line_number + 1,)));
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -309,14 +327,18 @@ function webform_validate_structured_text($element, $form_state) {
   $numb_empty = $numb_chunks - $numb_not_empty;
   $missing_chunks = ( $numb_chunks != $numb_not_empty && $numb_chunks != $numb_empty );
   // Now evaluate each text field.
-  $mask_regex_lines = explode("\n", $element['#mask_regex']);
   $mask_regex = array();
-  foreach ( $mask_regex_lines as $line ) {
-    list($chunk, $message, $regex) = explode('|', $line, 3);
-    $mask_regex[$chunk] = array(
-      'message' => $message,
-      'regex' => $regex,
-    );
+  if ( !empty($element['#mask_regex']) ) {
+    $mask_regex_lines = explode("\n", $element['#mask_regex']);
+    foreach ( $mask_regex_lines as $line ) {
+      if ( !empty($line) ) {
+        list($chunk, $message, $regex) = explode('|', $line, 3);
+        $mask_regex[$chunk] = array(
+          'message' => $message,
+          'regex' => $regex,
+        );
+      }
+    }
   }
   $component = 0;  // Used to point the user to the correct chunk of the whole input field in error messages.
   foreach ( $chunks as $part => $value ) {
