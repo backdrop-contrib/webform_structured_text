@@ -198,6 +198,11 @@ function _webform_edit_structured_text($component) {
   return $form;
 }
 
+/**
+ * Validate that any supplied Mask Regex Validation rules are properly formed.
+ * @param array $element The form element holding the regex lines.
+ * @param array $form_state Current state of the form.
+ */
 function _webform_structured_text_regex_validate($element, &$form_state) {
   if ( !empty($element['#value']) ) {
     $lines = explode("\n", $element['#value']);
