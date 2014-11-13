@@ -225,8 +225,10 @@ function _webform_structured_text_regex_validate($element, &$form_state) {
     $lines = explode("\n", $element['#value']);
     foreach ( $lines as $line_number => $line ) {
       if ( !empty($line) ) {
-        $parts = explode('|', $line);
-        if ( count($parts) != 3 ) {
+        $parts = explode('|', $line, 3);
+        $parts[1] = trim($parts[1]);
+        $parts[2] = trim($parts[2]);
+        if ( count($parts) != 3 || empty($parts[1]) || empty($parts[2]) ) {
           form_error($element, t('Line !line of the Mask Regex Validation is ill-formed.
                   There must be three parts to each line, separaged by vertical bars / pipes.  Please
                   review the detailed instructions for the Mask Regex Validation and try again.',
@@ -255,8 +257,9 @@ function _webform_structured_text_labels_validate($element, &$form_state) {
     $lines = explode("\n", $element['#value']);
     foreach ( $lines as $line_number => $line ) {
       if ( !empty($line) ) {
-        $parts = explode('|', $line);
-        if ( count($parts) != 2 ) {
+        $parts = explode('|', $line, 2);
+        $parts[1] = trim($parts[1]);
+        if ( count($parts) != 2 || empty($parts[1]) ) {
           form_error($element, t('Line !line of the Mask Labels is ill-formed.
                   There must be two parts to each line, separaged by vertical bars / pipes.  Please
                   review the instructions for the Mask Labels and try again.',
@@ -331,9 +334,10 @@ function webform_structured_text_expand_field($element) {
       }
     }
   }
+  $chunk = 0;
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $chunk = $part + 1;
+      $chunk++;
       $element['part-' . $part] = array(
         '#title' => ( empty($mask_labels[$chunk])
               ? t('!eltitle, part !chunk',
@@ -431,8 +435,8 @@ function webform_validate_structured_text($element, $form_state) {
                 $value != '' && (
                         preg_match('/[^0-9]/', $value)  ||
                         strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !component component must be 1 digit.';
-          $error_n = '!element field !component component must be @count digits.';
+          $error_1 = '!element field !part part must be 1 digit.';
+          $error_n = '!element field !part part must be @count digits.';
         }
         break;
 
@@ -441,16 +445,16 @@ function webform_validate_structured_text($element, $form_state) {
                 $value != '' && (
                         preg_match('/[^a-z]/i', $value)  ||
                         strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !component component must be 1 alpha character (a-z).';
-          $error_n = '!element field !component component must be @count alpha characters (a-z).';
+          $error_1 = '!element field !part part must be 1 alpha character (a-z).';
+          $error_n = '!element field !part part must be @count alpha characters (a-z).';
         }
         break;
 
       case 'x':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && ( strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !component component must be 1 character.';
-          $error_n = '!element field !component component must be @count characters.';
+          $error_1 = '!element field !part part must be 1 character.';
+          $error_n = '!element field !part part must be @count characters.';
         }
         break;
 
@@ -463,7 +467,7 @@ function webform_validate_structured_text($element, $form_state) {
               format_plural($element['#mask'][$part]['length'], $error_1, $error_n,
               array(
                 '!element' => $element['#title'],
-                '!component' => $component . _webform_structured_text_ordinal_suffix($component),
+                '!part' => $component . _webform_structured_text_ordinal_suffix($component),
               )));
     }
     elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 || $element['#mask'][$part]['type'] == 'r' ) &&
