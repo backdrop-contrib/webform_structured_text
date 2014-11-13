@@ -45,6 +45,7 @@ function _webform_defaults_structured_text() {
       'auto_skip' => TRUE,
       'mask_description' => FALSE,
       'mask_regex' => '',
+      'mask_labels' => '',
       'description' => '',
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
@@ -159,6 +160,22 @@ function _webform_edit_structured_text($component) {
     '#weight' => -3.6,
     '#element_validate' => array('_webform_structured_text_regex_validate',),
   );
+  $form['extra']['mask_labels'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Mask labels'),
+    '#default_value' => $component['extra']['mask_labels'],
+    '#description' => t('You can specify invisible labels for each chunk using a
+          format similar to the RegEx validation.  This can be useful for making
+          the form accessible using a screen reader.  Use the form<br><br>
+          <em>chunk-number</em>|<em>label-text</em><br><br>For example<br><br>
+          1|Area code<br>
+          2|Exchange<br>
+          3|Number<br><br>
+          If you don\'t specify mask labels, generic "<em>component_title</em>,
+          part <em>n</em> labels will be used, where <em>n</em> is the chunk number.' ),
+    '#weight' => -3.55,
+    '#element_validate' => array('_webform_structured_text_labels_validate',),
+  );
   $form['extra']['css_classes'] = array(
     '#type' => 'textfield',
     '#title' => t('CSS Class(es)'),
@@ -229,6 +246,36 @@ function _webform_structured_text_regex_validate($element, &$form_state) {
 }
 
 /**
+ * Validate that any supplied Mask Labels are properly formed.
+ * @param array $element The form element holding the label lines.
+ * @param array $form_state Current state of the form.
+ */
+function _webform_structured_text_labels_validate($element, &$form_state) {
+    if ( !empty($element['#value']) ) {
+    $lines = explode("\n", $element['#value']);
+    foreach ( $lines as $line_number => $line ) {
+      if ( !empty($line) ) {
+        $parts = explode('|', $line);
+        if ( count($parts) != 2 ) {
+          form_error($element, t('Line !line of the Mask Labels is ill-formed.
+                  There must be two parts to each line, separaged by vertical bars / pipes.  Please
+                  review the instructions for the Mask Labels and try again.',
+                  array('!line' => $line_number + 1,)));
+        }
+        else {
+          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+            form_error($element,t('Line !line of Mask Labels must start with
+                    a positive integer signifying the chunk number of the mask.  "!value" is
+                    not a valid chunk number.',
+                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Implements _webform_render_component().
  */
 function _webform_render_structured_text($component, $value = NULL, $filter = FALSE) {
@@ -255,6 +302,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
     '#mask_regex' => $component['extra']['mask_regex'],
+    '#mask_labels' => $component['extra']['mask_labels'],
     '#auto_skip' => $component['extra']['auto_skip'],
   );
 
@@ -273,9 +321,29 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
 function webform_structured_text_expand_field($element) {
   static $js_added = FALSE;
   $js_ids = array();
+  $mask_labels = array();
+  if ( !empty($element['#mask_labels']) ) {
+    $mask_labels_lines = explode("\n", $element['#mask_labels']);
+    foreach ( $mask_labels_lines as $line ) {
+      if ( !empty($line) ) {
+        list($chunk, $label) = explode('|', $line, 2);
+        $mask_labels[$chunk] = $label;
+      }
+    }
+  }
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
+      $chunk = $part + 1;
       $element['part-' . $part] = array(
+        '#title' => ( empty($mask_labels[$chunk])
+              ? t('!eltitle, part !chunk',
+                      array(
+                        '!eltitle' => $element['#title'],
+                        '!chunk' => $chunk,
+                      )
+                  )
+              : $mask_labels[$chunk] ),
+        '#title_display' => 'invisible',
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
         '#maxlength' => $details['length'],
