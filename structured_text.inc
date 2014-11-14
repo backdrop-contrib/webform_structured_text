@@ -10,6 +10,7 @@
  */
 function _webform_structured_text_get_wf_property($prop = 'required') {
   $info = system_get_info('module', 'webform');
+  $version = array();
   preg_match('/^[0-9]+\.x\-([0-9]+)\..*$/', $info['version'], $version);
   $properties = array(
     'required' => array(
@@ -47,6 +48,7 @@ function _webform_defaults_structured_text() {
       'mask_regex' => '',
       'mask_labels' => '',
       'description' => '',
+      'placeholders' => '',
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
       'private' => FALSE,
@@ -176,6 +178,18 @@ function _webform_edit_structured_text($component) {
     '#weight' => -3.55,
     '#element_validate' => array('_webform_structured_text_labels_validate',),
   );
+  $form['extra']['placeholders'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Placeholders'),
+    '#default_value' => $component['extra']['placeholders'],
+    '#description' => t('You can specify placeholders for each chunk using a
+          format similar to the Mask Labels validation.  Use the form<br><br>
+          <em>chunk-number</em>|<em>placeholder-text</em><br><br>For example<br><br>
+          1|First Name<br>
+          2|Last Name' ),
+    '#weight' => -3.53,
+    '#element_validate' => array('_webform_structured_text_placeholders_validate',),
+  );
   $form['extra']['css_classes'] = array(
     '#type' => 'textfield',
     '#title' => t('CSS Class(es)'),
@@ -279,6 +293,37 @@ function _webform_structured_text_labels_validate($element, &$form_state) {
 }
 
 /**
+ * Validate that any supplied Placeholders are properly formed.
+ * @param array $element The form element holding the label lines.
+ * @param array $form_state Current state of the form.
+ */
+function _webform_structured_text_placeholders_validate($element, &$form_state) {
+    if ( !empty($element['#value']) ) {
+    $lines = explode("\n", $element['#value']);
+    foreach ( $lines as $line_number => $line ) {
+      if ( !empty($line) ) {
+        $parts = explode('|', $line, 2);
+        $parts[1] = trim($parts[1]);
+        if ( count($parts) != 2 || empty($parts[1]) ) {
+          form_error($element, t('Line !line of the Placeholders is ill-formed.
+                  There must be two parts to each line, separaged by vertical bars / pipes.  Please
+                  review the instructions for the Placeholders and try again.',
+                  array('!line' => $line_number + 1,)));
+        }
+        else {
+          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+            form_error($element,t('Line !line of Placeholders must start with
+                    a positive integer signifying the chunk number of the mask.  "!value" is
+                    not a valid chunk number.',
+                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Implements _webform_render_component().
  */
 function _webform_render_structured_text($component, $value = NULL, $filter = FALSE) {
@@ -306,6 +351,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
     '#mask_regex' => $component['extra']['mask_regex'],
     '#mask_labels' => $component['extra']['mask_labels'],
+    '#placeholders' => $component['extra']['placeholders'],
     '#auto_skip' => $component['extra']['auto_skip'],
   );
 
@@ -334,6 +380,16 @@ function webform_structured_text_expand_field($element) {
       }
     }
   }
+  $placeholders = array();
+  if ( !empty($element['#placeholders']) ) {
+    $placeholders_lines = explode("\n", $element['#placeholders']);
+    foreach ( $placeholders_lines as $line ) {
+      if ( !empty($line) ) {
+        list($chunk, $placeholder) = explode('|', $line, 2);
+        $placeholders[$chunk] = $placeholder;
+      }
+    }
+  }
   $chunk = 0;
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
@@ -356,6 +412,9 @@ function webform_structured_text_expand_field($element) {
           'class' => array('structured-text part-' . $part,),
         ),
       );
+      if ( !empty($placeholders[$chunk]) ) {
+        $element['part-' .  $part]['#attributes']['placeholder'] = $placeholders[$chunk];
+      }
       $js_ids[] = $part;
     }
     else {
@@ -639,6 +698,7 @@ function webform_structured_text_parse_mask($mask) {
           }
           $mask_array[$part]['size'] = (int) $mask_array[$part]['size'];
         }
+        $i--;  // back up the counter for regular expressions because it will be advanced by the for loop.
       }
       else {
         $mask_array[$part]['length'] = 1;
@@ -654,7 +714,19 @@ function webform_structured_text_parse_mask($mask) {
         }
       }
       else {
-        $mask_array[$part]['value'] .= $mask[$i];
+        if ( $mask[$i] == ' ' ) {
+          // Special treatment for spaces.  Start off a string of spaces with
+          // a non-breaking one, and then toggle between non-breaking and reagular
+          // to achieve the spacing specified in the mask.
+          if ( $i == 0 || $mask[$i-1] != ' ' ) {
+            $space = ' ';
+          }
+          $space = ( $space == ' ' ? '&nbsp;' : ' ' );
+          $mask_array[$part]['value'] .= $space;
+        }
+        else {
+          $mask_array[$part]['value'] .= $mask[$i];
+        }
       }
     }
   }
