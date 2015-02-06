@@ -402,7 +402,7 @@ function webform_structured_text_expand_field($element) {
                         '!chunk' => $chunk,
                       )
                   )
-              : $mask_labels[$chunk] ),
+              : t($mask_labels[$chunk]) ),
         '#title_display' => 'invisible',
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
@@ -413,7 +413,7 @@ function webform_structured_text_expand_field($element) {
         ),
       );
       if ( !empty($placeholders[$chunk]) ) {
-        $element['part-' .  $part]['#attributes']['placeholder'] = $placeholders[$chunk];
+        $element['part-' .  $part]['#attributes']['placeholder'] = t($placeholders[$chunk]);
       }
       $js_ids[] = $part;
     }
@@ -533,7 +533,7 @@ function webform_validate_structured_text($element, $form_state) {
             !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
       if ( !preg_match(trim($mask_regex[$component]['regex']), $value) ) {
         $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
-        form_set_error($component_field, check_plain($mask_regex[$component]['message']));
+        form_set_error($component_field, check_plain(t($mask_regex[$component]['message'])));
       }
     }
   }
