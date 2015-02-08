@@ -353,6 +353,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#mask_labels' => $component['extra']['mask_labels'],
     '#placeholders' => $component['extra']['placeholders'],
     '#auto_skip' => $component['extra']['auto_skip'],
+    '#translatable' => array('title', 'description', 'mask_labels', 'placeholders',),
   );
 
   if (isset($value)) {
@@ -563,6 +564,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
     '#component' => $component,
     '#format' => $format,
     '#value' => $value[0] != '' ? webform_structured_text_format_value($component['extra']['mask'], $value[0], $format) : '',
+    '#translatable' => array('title',),
   );
 }
 
