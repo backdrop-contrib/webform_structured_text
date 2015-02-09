@@ -84,7 +84,7 @@ function _webform_edit_structured_text($component) {
           <ul>
           <li>9 - only a digit can be input</li>
           <li>x - any non-blank character can be input</li>
-          <li>a - only letters can be input</li>
+          <li>a - only letters can be input (upper or lower case)</li>
           <li>r{<em>n</em>{,<em>s</em>}} - any characters with the maximum length
                   of the field specified by <em>n</em> where <em>n</em> is an integer
                   greater than 0.  If <em>n</em> is omitted, the maximum length
@@ -128,7 +128,7 @@ function _webform_edit_structured_text($component) {
     '#default_value' => $component['extra']['mask_description'],
     '#description' => t('Check this box to show a description of the mask in the field\'s
           description area.  This will appear appended to the description you specify
-          below (if any).  If you don\'t profide a description below and this box
+          below (if any).  If you don\'t provide a description below and this box
           is checked, the mask description will still show.' ),
     '#weight' => -3.7,
   );
@@ -174,7 +174,7 @@ function _webform_edit_structured_text($component) {
           2|Exchange<br>
           3|Number<br><br>
           If you don\'t specify mask labels, generic "<em>component_title</em>,
-          part <em>n</em> labels will be used, where <em>n</em> is the chunk number.' ),
+          part <em>n</em>" labels will be used, where <em>n</em> is the chunk number.' ),
     '#weight' => -3.55,
     '#element_validate' => array('_webform_structured_text_labels_validate',),
   );
@@ -211,12 +211,9 @@ function _webform_edit_structured_text($component) {
     '#weight' => 3,
     '#parents' => array('extra', 'analysis_display'),
   );
-  $other_components = array('' => t('Submission ID'));
-  $result = db_query('SELECT cid, form_key FROM {webform_component} WHERE nid = :nid ORDER BY weight, form_key',
-          array(':nid' => $component['nid'],));
-  foreach ( $result as $c ) {
-    $other_components[$c->cid] = $c->form_key;
-  }
+  $other_components = array('' => t('Submission ID')) +
+      db_query('SELECT cid, form_key FROM {webform_component} WHERE nid = :nid ORDER BY weight, form_key',
+          array(':nid' => $component['nid'],))->fetchAllKeyed();
   $form['extra']['analysis_display_identifying'] = array(
     '#type' => 'select',
     '#title' => t('Identifying field'),
@@ -236,25 +233,23 @@ function _webform_edit_structured_text($component) {
  */
 function _webform_structured_text_regex_validate($element, &$form_state) {
   if ( !empty($element['#value']) ) {
-    $lines = explode("\n", $element['#value']);
+    $lines = array_filter(explode("\n", $element['#value']));
     foreach ( $lines as $line_number => $line ) {
-      if ( !empty($line) ) {
-        $parts = explode('|', $line, 3);
-        $parts[1] = trim($parts[1]);
-        $parts[2] = trim($parts[2]);
-        if ( count($parts) != 3 || empty($parts[1]) || empty($parts[2]) ) {
-          form_error($element, t('Line !line of the Mask Regex Validation is ill-formed.
-                  There must be three parts to each line, separaged by vertical bars / pipes.  Please
-                  review the detailed instructions for the Mask Regex Validation and try again.',
-                  array('!line' => $line_number + 1,)));
-        }
-        else {
-          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
-            form_error($element,t('Line !line of Mask Regex Validation must start with
-                    a positive integer signifying the chunk number of the mask.  "!value" is
-                    not a valid chunk number.',
-                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
-          }
+      $parts = explode('|', $line, 3);
+      $parts[1] = trim($parts[1]);
+      $parts[2] = trim($parts[2]);
+      if ( count($parts) != 3 || empty($parts[1]) || empty($parts[2]) ) {
+        form_error($element, t('Line !line of the Mask Regex Validation is ill-formed.
+                There must be three parts to each line, separaged by vertical bars / pipes.  Please
+                review the detailed instructions for the Mask Regex Validation and try again.',
+                array('!line' => $line_number + 1,)));
+      }
+      else {
+        if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+          form_error($element,t('Line !line of Mask Regex Validation must start with
+                  a positive integer signifying the chunk number of the mask.  "@value" is
+                  not a valid chunk number.',
+                  array('!line' => $line_number + 1, '@value' => $parts[0],)));
         }
       }
     }
@@ -268,24 +263,22 @@ function _webform_structured_text_regex_validate($element, &$form_state) {
  */
 function _webform_structured_text_labels_validate($element, &$form_state) {
     if ( !empty($element['#value']) ) {
-    $lines = explode("\n", $element['#value']);
+    $lines = array_filter(explode("\n", $element['#value']));
     foreach ( $lines as $line_number => $line ) {
-      if ( !empty($line) ) {
-        $parts = explode('|', $line, 2);
-        $parts[1] = trim($parts[1]);
-        if ( count($parts) != 2 || empty($parts[1]) ) {
-          form_error($element, t('Line !line of the Mask Labels is ill-formed.
-                  There must be two parts to each line, separaged by vertical bars / pipes.  Please
-                  review the instructions for the Mask Labels and try again.',
-                  array('!line' => $line_number + 1,)));
-        }
-        else {
-          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
-            form_error($element,t('Line !line of Mask Labels must start with
-                    a positive integer signifying the chunk number of the mask.  "!value" is
-                    not a valid chunk number.',
-                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
-          }
+      $parts = explode('|', $line, 2);
+      $parts[1] = trim($parts[1]);
+      if ( count($parts) != 2 || empty($parts[1]) ) {
+        form_error($element, t('Line !line of the Mask Labels is ill-formed.
+                There must be two parts to each line, separaged by vertical bars / pipes.  Please
+                review the instructions for the Mask Labels and try again.',
+                array('!line' => $line_number + 1,)));
+      }
+      else {
+        if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+          form_error($element,t('Line !line of Mask Labels must start with
+                  a positive integer signifying the chunk number of the mask.  "@value" is
+                  not a valid chunk number.',
+                  array('!line' => $line_number + 1, '@value' => $parts[0],)));
         }
       }
     }
@@ -299,24 +292,22 @@ function _webform_structured_text_labels_validate($element, &$form_state) {
  */
 function _webform_structured_text_placeholders_validate($element, &$form_state) {
     if ( !empty($element['#value']) ) {
-    $lines = explode("\n", $element['#value']);
+    $lines = array_filter(explode("\n", $element['#value']));
     foreach ( $lines as $line_number => $line ) {
-      if ( !empty($line) ) {
-        $parts = explode('|', $line, 2);
-        $parts[1] = trim($parts[1]);
-        if ( count($parts) != 2 || empty($parts[1]) ) {
-          form_error($element, t('Line !line of the Placeholders is ill-formed.
-                  There must be two parts to each line, separaged by vertical bars / pipes.  Please
-                  review the instructions for the Placeholders and try again.',
-                  array('!line' => $line_number + 1,)));
-        }
-        else {
-          if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
-            form_error($element,t('Line !line of Placeholders must start with
-                    a positive integer signifying the chunk number of the mask.  "!value" is
-                    not a valid chunk number.',
-                    array('!line' => $line_number + 1, '!value' => check_plain($parts[0]),)));
-          }
+      $parts = explode('|', $line, 2);
+      $parts[1] = trim($parts[1]);
+      if ( count($parts) != 2 || empty($parts[1]) ) {
+        form_error($element, t('Line !line of the Placeholders is ill-formed.
+                There must be two parts to each line, separaged by vertical bars / pipes.  Please
+                review the instructions for the Placeholders and try again.',
+                array('!line' => $line_number + 1,)));
+      }
+      else {
+        if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+          form_error($element,t('Line !line of Placeholders must start with
+                  a positive integer signifying the chunk number of the mask.  "@value" is
+                  not a valid chunk number.',
+                  array('!line' => $line_number + 1, '@value' => $parts[0],)));
         }
       }
     }
@@ -373,22 +364,18 @@ function webform_structured_text_expand_field($element) {
   $js_ids = array();
   $mask_labels = array();
   if ( !empty($element['#mask_labels']) ) {
-    $mask_labels_lines = explode("\n", $element['#mask_labels']);
+    $mask_labels_lines = array_filter(explode("\n", $element['#mask_labels']));
     foreach ( $mask_labels_lines as $line ) {
-      if ( !empty($line) ) {
-        list($chunk, $label) = explode('|', $line, 2);
-        $mask_labels[$chunk] = $label;
-      }
+      list($chunk, $label) = explode('|', $line, 2);
+      $mask_labels[$chunk] = $label;
     }
   }
   $placeholders = array();
   if ( !empty($element['#placeholders']) ) {
-    $placeholders_lines = explode("\n", $element['#placeholders']);
+    $placeholders_lines = array_filter(explode("\n", $element['#placeholders']));
     foreach ( $placeholders_lines as $line ) {
-      if ( !empty($line) ) {
-        list($chunk, $placeholder) = explode('|', $line, 2);
-        $placeholders[$chunk] = $placeholder;
-      }
+      list($chunk, $placeholder) = explode('|', $line, 2);
+      $placeholders[$chunk] = $placeholder;
     }
   }
   $chunk = 0;
@@ -403,7 +390,7 @@ function webform_structured_text_expand_field($element) {
                         '!chunk' => $chunk,
                       )
                   )
-              : t($mask_labels[$chunk]) ),
+              : check_plain(t($mask_labels[$chunk])) ),
         '#title_display' => 'invisible',
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
@@ -414,7 +401,7 @@ function webform_structured_text_expand_field($element) {
         ),
       );
       if ( !empty($placeholders[$chunk]) ) {
-        $element['part-' .  $part]['#attributes']['placeholder'] = t($placeholders[$chunk]);
+        $element['part-' .  $part]['#attributes']['placeholder'] = check_plain(t($placeholders[$chunk]));
       }
       $js_ids[] = $part;
     }
@@ -495,8 +482,8 @@ function webform_validate_structured_text($element, $form_state) {
                 $value != '' && (
                         preg_match('/[^0-9]/', $value)  ||
                         strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !part part must be 1 digit.';
-          $error_n = '!element field !part part must be @count digits.';
+          $error_1 = t('digit');
+          $error_n = t('digits');
         }
         break;
 
@@ -505,16 +492,16 @@ function webform_validate_structured_text($element, $form_state) {
                 $value != '' && (
                         preg_match('/[^a-z]/i', $value)  ||
                         strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !part part must be 1 alpha character (a-z).';
-          $error_n = '!element field !part part must be @count alpha characters (a-z).';
+          $error_1 = t('alpha character (a-z)');
+          $error_n = t('alpha characters (a-z)');
         }
         break;
 
       case 'x':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && ( strlen($value) < $element['#mask'][$part]['length'] ) ) {
-          $error_1 = '!element field !part part must be 1 character.';
-          $error_n = '!element field !part part must be @count characters.';
+          $error_1 = t('character');
+          $error_n = t('characters');
         }
         break;
 
@@ -524,11 +511,15 @@ function webform_validate_structured_text($element, $form_state) {
     if ( $error_1 ) {
       $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
       form_set_error($component_field,
-              format_plural($element['#mask'][$part]['length'], $error_1, $error_n,
-              array(
-                '!element' => $element['#title'],
-                '!part' => $component . _webform_structured_text_ordinal_suffix($component),
-              )));
+              format_plural($element['#mask'][$part]['length'],
+                      '%element field !part part must be 1 !singular.',
+                      '%element field !part part must be @count !plural.',
+                  array(
+                    '%element' => $element['#title'],
+                    '!part' => t($component . _webform_structured_text_ordinal_suffix($component)),
+                    '!singular' => $error_1,
+                    '!plural' => $error_n,
+                  )));
     }
     elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 || $element['#mask'][$part]['type'] == 'r' ) &&
             !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
