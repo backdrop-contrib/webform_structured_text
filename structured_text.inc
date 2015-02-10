@@ -379,6 +379,14 @@ function webform_structured_text_expand_field($element) {
     }
   }
   $chunk = 0;
+
+  // For each part of the mask, the labels and placeholders as well as markup portions
+  // of the mask are passed through t() to introduce them to the localisation system.
+  // #title and #attributes are sanitised later in drupal_render, so no check_plain of
+  // the user input is done here.  However, the markup is not, so check_plain is done
+  // on the translated string, and then non-breaking spaces restored, as creation of
+  // the markup portion of the mask uses &nbsp; and regular spaces alternately to
+  // ensure the number of spaces in the mask is preserved.
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
       $chunk++;
@@ -390,7 +398,7 @@ function webform_structured_text_expand_field($element) {
                         '!chunk' => $chunk,
                       )
                   )
-              : check_plain(t($mask_labels[$chunk])) ),
+              : t($mask_labels[$chunk]) ),
         '#title_display' => 'invisible',
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
@@ -401,14 +409,14 @@ function webform_structured_text_expand_field($element) {
         ),
       );
       if ( !empty($placeholders[$chunk]) ) {
-        $element['part-' .  $part]['#attributes']['placeholder'] = check_plain(t($placeholders[$chunk]));
+        $element['part-' .  $part]['#attributes']['placeholder'] = t($placeholders[$chunk]);
       }
       $js_ids[] = $part;
     }
     else {
       $element['part-' . $part] = array(
         '#type' => 'markup',
-        '#markup' => $details['value'],
+        '#markup' => str_replace('&amp;nbsp;', '&nbsp;', check_plain(t($details['value']))),
         '#prefix' => '<div class="structured-text markup part-' . $part . '">',
         '#suffix' => '</div>',
       );
