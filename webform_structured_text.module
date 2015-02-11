@@ -50,4 +50,100 @@ function webform_structured_text_webform_component_info() {
 }
 
 
+/**********************************
+ * Translation-related functions.
+ */
+
+/**
+* Implements hook_i18n_string_info()
+*/
+function webform_structured_text_i18n_string_info() {
+  $groups['webform_structured_text'] = array(
+    'title' => t('Webform Structured Text'),
+    'description' => t('User-defined error messages and mask components for localisable webform structured text fields.'),
+    'format' => FALSE, // This group doesn't have strings with format
+    'list' => TRUE, // This group can list all strings
+    'refresh callback' => 'webform_structured_text_i18n_string_refresh',
+  );
+  return $groups;
+}
+
+/**
+ * Implements hook_i18n_string_list().
+ */
+function webform_structured_text_i18n_string_list($group) {
+  if ($group == 'webform_structured_text' || $group == 'all') {
+    module_load_include('inc', 'webform_structured_text', 'structured_text');
+    $strings = array();
+    $components = db_query("SELECT nid, cid, form_key, name, extra FROM webform_component WHERE type = 'structured_text'")->fetchAll();
+    foreach ( $components as $component ) {
+      $component->extra = unserialize($component->extra);
+      // First, deal with the markup elements of the mask.
+      $mask = webform_structured_text_parse_mask($component->extra['mask']);
+      foreach ( $mask as $index => $part ) {
+        if ( $part['type'] == 'markup' ) {
+          $strings['webform_structured_text'][$component->nid][$component->cid]['mask'][$index] = $part['value'];
+        }
+      }
+      // Next, the error messages in the RegEx
+      $regex = array_filter(explode("\n", $component->extra['mask_regex']));
+      foreach ( $regex as $line ) {
+        list($line_numb, $error_message, $pattern ) = explode('|', $line, 3);
+        $strings['webform_structured_text'][$component->nid][$component->cid]['regex'][$line_numb]['message'] = trim($error_message);
+      }
+    }
+    return $strings;
+  }
+}
+
+/**
+ * Custom translation function for portions of the webform structured text that need to be translated.
+ * @param string $name The context name that will be appended to the textgroup and a colon, to be passed through i18n_string.
+ * @param string $string The string to be translated.
+ * @param string $langcode (Optional) the language code.
+ * @param string $textgroup (Optional - defaults to 'webform_structured_text') the textgroup to use.
+ * @return string The translated string.
+ */
+function _webform_structured_text_t($name, $string, $langcode = NULL, $textgroup = 'webform_structured_text') {
+  return function_exists('i18n_string') ? i18n_string($textgroup . ':' . $name, $string, array('langcode' => $langcode)) : $string;
+}
+
+/**
+ * Update translatable strings.
+ */
+function webform_structured_text_i18n_update_strings($components = array()) {
+  if ( !function_exists('i18n_string_update') ) return;
+  $components = db_query("SELECT nid, cid, form_key, name, extra FROM webform_component WHERE type = 'structured_text'")->fetchAll();
+    module_load_include('inc', 'webform_structured_text', 'structured_text');
+    foreach ( $components as $component ) {
+    $component->extra = unserialize($component->extra);
+    // First, deal with the markup elements of the mask.
+    $mask = webform_structured_text_parse_mask($component->extra['mask']);
+    foreach ( $mask as $index => $part ) {
+      if ( $part['type'] == 'markup' ) {
+        i18n_string_update("webform_structured_text:{$component->nid}:{$component->cid}:mask:$index", $part['value']);
+      }
+    }
+    // Next, the error messages in the RegEx
+    $regex = array_filter(explode("\n", $component->extra['mask_regex']));
+    foreach ( $regex as $line ) {
+      list($line_numb, $error_message, $pattern ) = explode('|', $line, 3);
+      i18n_string_update("webform_structured_text:{$component->nid}:{$component->cid}:regex:$line_numb:message", trim($error_message));
+    }
+  }
+}
+
+/**
+ * Implements hook_i18n_string_refresh().
+ *
+ * Refresh translations for all user-generated strings managed by webform_structured_text.
+ * This will load all strings inputted via the webform_structured_text user interface and
+ * register them (and their translations, if there are any) with the
+ * i18n_strings system.
+ */
+function webform_structured_text_i18n_string_refresh() {
+  webform_structured_text_i18n_update_strings();
+  return TRUE;
+}
+
 

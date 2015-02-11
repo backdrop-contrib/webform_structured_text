@@ -398,7 +398,7 @@ function webform_structured_text_expand_field($element) {
                         '!chunk' => $chunk,
                       )
                   )
-              : t($mask_labels[$chunk]) ),
+              : $mask_labels[$chunk] ),
         '#title_display' => 'invisible',
         '#type' => 'textfield',
         '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
@@ -409,14 +409,16 @@ function webform_structured_text_expand_field($element) {
         ),
       );
       if ( !empty($placeholders[$chunk]) ) {
-        $element['part-' .  $part]['#attributes']['placeholder'] = t($placeholders[$chunk]);
+        $element['part-' .  $part]['#attributes']['placeholder'] = $placeholders[$chunk];
       }
       $js_ids[] = $part;
     }
     else {
       $element['part-' . $part] = array(
         '#type' => 'markup',
-        '#markup' => str_replace('&amp;nbsp;', '&nbsp;', check_plain(t($details['value']))),
+        '#markup' => strip_tags(_webform_structured_text_t(
+                $element['#webform_component']['nid'] . ':' . $element['#webform_component']['cid'] . ":mask:$part",
+                $details['value'])),
         '#prefix' => '<div class="structured-text markup part-' . $part . '">',
         '#suffix' => '</div>',
       );
@@ -533,7 +535,9 @@ function webform_validate_structured_text($element, $form_state) {
             !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
       if ( !preg_match(trim($mask_regex[$component]['regex']), $value) ) {
         $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
-        form_set_error($component_field, check_plain(t($mask_regex[$component]['message'])));
+        form_set_error($component_field, strip_tags(_webform_structured_text_t(
+                $element['#webform_component']['nid'] . ':' . $element['#webform_component']['cid'] . ":regex:$component:message",
+                $mask_regex[$component]['message'])));
       }
     }
   }
@@ -562,7 +566,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
     '#field_suffix' => ( isset($component['extra']['field_suffix']) ? $component['extra']['field_suffix'] : '' ),
     '#component' => $component,
     '#format' => $format,
-    '#value' => $value[0] != '' ? webform_structured_text_format_value($component['extra']['mask'], $value[0], $format) : '',
+    '#value' => $value[0] != '' ? webform_structured_text_format_value($component['extra']['mask'], $value[0], $component, $format) : '',
     '#translatable' => array('title',),
   );
 }
@@ -624,7 +628,7 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
                   ))->fetchField();
         }
       $responses[] = array('<div class="webform-response">' . l($identifier, "node/{$component['nid']}/submission/{$data['sid']}") . ': ' .
-        webform_structured_text_format_value($component['extra']['mask'], $data['data']) . '</div>', '');
+        webform_structured_text_format_value($component['extra']['mask'], $data['data'], $component) . '</div>', '');
       }
     }
     $submissions++;
@@ -645,7 +649,7 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
  * Implements _webform_table_component().
  */
 function _webform_table_structured_text($component, $value) {
-  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0]) );
+  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0], $component) );
 }
 
 /**
@@ -659,13 +663,18 @@ function _webform_csv_headers_structured_text($component, $export_options) {
  * Implements _webform_cvs_data_component().
  */
 function _webform_csv_data_structured_text($component, $export_options, $value) {
-  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0], 'text') );
+  return ( empty($value[0]) ? '' : webform_structured_text_format_value($component['extra']['mask'], $value[0], $component, 'text') );
 }
 
 /**
  * Helper function to parse a mask string into an array of mask parts.
  * @param string $mask The mask input by the user when the component was configured.
- * @return array Mask parts.
+ * @return array Mask parts as a zero-indexed array, with the elements of the array
+ *      itself an array of:
+ *      'type' => one of '9', 'a', 'x', 'r', or 'markup',
+ *      'length' => the length of that part of the mask, or max-length where 'type' == 'r',
+ *      'value' => the actual markup in the case of 'type' == 'markup', empty otherwise,
+ *      'size' => where 'type' == 'r', the optional size of the field.
  */
 function webform_structured_text_parse_mask($mask) {
   $mask_array = array();
@@ -757,11 +766,12 @@ function webform_structured_text_parse_value($mask, $value) {
  * Helper function to format a value per a mask.
  * @param mixed $mask Either the string mask, or the mask array.
  * @param string $value The value to be formatted.
+ * @param array $component The component array itself.
  * @param string $format What format (HTML or text) should be returned.
  *        Specifying 'html' forces a pass of the output through check_plain.
  * @return string The formatted value.
  */
-function webform_structured_text_format_value($mask, $value, $format = 'html') {
+function webform_structured_text_format_value($mask, $value, $component, $format = 'html') {
   $mask_array = is_array($mask) ? $mask : webform_structured_text_parse_mask($mask);
   $output = '';
   $start = 0;
@@ -771,7 +781,7 @@ function webform_structured_text_format_value($mask, $value, $format = 'html') {
       $start += $details['length'];
     }
     else {
-      $output .= $details['value'];
+      $output .= _webform_structured_text_t("{$component['nid']}:{$component['cid']}:mask", $details['value']);
     }
   }
   return ( $format == 'html' ? check_plain($output) : $output );
@@ -819,8 +829,8 @@ function webform_structured_text_field_description($component) {
  * @return string The ordinal ending.
  */
 function _webform_structured_text_ordinal_suffix($num){
-    if($num < 11 || $num > 13){
-         switch($num % 10){
+    if ( $num < 4 || $num > 20 ){
+         switch ( $num % 10 ) {
             case 1: return 'st';
             case 2: return 'nd';
             case 3: return 'rd';
@@ -828,4 +838,32 @@ function _webform_structured_text_ordinal_suffix($num){
     }
     return 'th';
 }
+
+/**
+ * Dummy function to help with translation.
+ */
+function _webform_translate_dummy() {
+  t('1st');
+  t('2nd');
+  t('3rd');
+  t('4th');
+  t('5th');
+  t('6th');
+  t('7th');
+  t('8th');
+  t('9th');
+  t('10th');
+  t('11th');
+  t('12th');
+  t('13th');
+  t('14th');
+  t('15th');
+  t('16th');
+  t('17th');
+  t('18th');
+  t('19th');
+  t('20th');
+  // More than 20 parts and you're on your own for translating that.
+}
+
 
