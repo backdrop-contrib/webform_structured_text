@@ -863,4 +863,24 @@ function _webform_translate_dummy() {
   // More than 20 parts and you're on your own for translating that.
 }
 
+/**
+ * Implements hook_webform_component_insert.
+ */
+function webform_structured_text_webform_component_insert($component) {
+  webform_structured_text_i18n_update_strings($component);
+}
+
+/**
+ * Implements hook_webform_component_update.
+ */
+function webform_structured_text_webform_component_update($component) {
+  webform_structured_text_i18n_update_strings($component);
+}
+
+/**
+ * Implements hook_webform_component_delete.
+ */
+function webform_structured_text_webform_component_delete($component) {
+  webform_structured_text_i18n_update_strings($component, 'remove');
+}
 

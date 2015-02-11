@@ -110,25 +110,34 @@ function _webform_structured_text_t($name, $string, $langcode = NULL, $textgroup
 
 /**
  * Update translatable strings.
+ * @param array $component A single component for which to update or remove translations.
  */
-function webform_structured_text_i18n_update_strings($components = array()) {
+function webform_structured_text_i18n_update_strings($component = NULL, $op = 'update') {
   if ( !function_exists('i18n_string_update') ) return;
-  $components = db_query("SELECT nid, cid, form_key, name, extra FROM webform_component WHERE type = 'structured_text'")->fetchAll();
+  $update_function = ( $op == 'update' ? 'i18n_string_update' : 'i18n_string_remove' );
+  if ( empty($component) ) {
+    $components = db_query("SELECT nid, cid, form_key, name, extra FROM {webform_component} WHERE type = 'structured_text'")->fetchAll();
+  }
+  else {
+    $components = array((object) $component);
+  }
     module_load_include('inc', 'webform_structured_text', 'structured_text');
     foreach ( $components as $component ) {
+    if ( !is_array($component->extra) ) {
     $component->extra = unserialize($component->extra);
+    }
     // First, deal with the markup elements of the mask.
     $mask = webform_structured_text_parse_mask($component->extra['mask']);
     foreach ( $mask as $index => $part ) {
       if ( $part['type'] == 'markup' ) {
-        i18n_string_update("webform_structured_text:{$component->nid}:{$component->cid}:mask:$index", $part['value']);
+        $update_function("webform_structured_text:{$component->nid}:{$component->cid}:mask:$index", $part['value']);
       }
     }
     // Next, the error messages in the RegEx
     $regex = array_filter(explode("\n", $component->extra['mask_regex']));
     foreach ( $regex as $line ) {
       list($line_numb, $error_message, $pattern ) = explode('|', $line, 3);
-      i18n_string_update("webform_structured_text:{$component->nid}:{$component->cid}:regex:$line_numb:message", trim($error_message));
+      $update_function("webform_structured_text:{$component->nid}:{$component->cid}:regex:$line_numb:message", trim($error_message));
     }
   }
 }
@@ -145,5 +154,4 @@ function webform_structured_text_i18n_string_refresh() {
   webform_structured_text_i18n_update_strings();
   return TRUE;
 }
-
 
