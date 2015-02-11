@@ -381,12 +381,9 @@ function webform_structured_text_expand_field($element) {
   $chunk = 0;
 
   // For each part of the mask, the labels and placeholders as well as markup portions
-  // of the mask are passed through t() to introduce them to the localisation system.
-  // #title and #attributes are sanitised later in drupal_render, so no check_plain of
-  // the user input is done here.  However, the markup is not, so check_plain is done
-  // on the translated string, and then non-breaking spaces restored, as creation of
-  // the markup portion of the mask uses &nbsp; and regular spaces alternately to
-  // ensure the number of spaces in the mask is preserved.
+  // of the mask are managed by webform_localization.  #title and #attributes are
+  // sanitised later in drupal_render, so no strip_tags of the user input is done
+  // here.  However, the markup is not, so strip_tags is done on the translated string.
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
       $chunk++;
