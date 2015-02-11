@@ -725,8 +725,8 @@ function webform_structured_text_parse_mask($mask) {
           // Special treatment for spaces.  Start off a string of spaces with
           // a non-breaking one, and then toggle between non-breaking and reagular
           // to achieve the spacing specified in the mask.
-          if ( $i == 0 || $mask[$i-1] != ' ' ) {
-            $space = ' ';
+          if ( $i == 0 || $mask[$i-1] != ' ' ) { // Reset space character if it's the first in a series.
+            $space = '&nbsp;';
           }
           $space = ( $space == ' ' ? '&nbsp;' : ' ' );
           $mask_array[$part]['value'] .= $space;
