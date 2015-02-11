@@ -121,8 +121,8 @@ function webform_structured_text_i18n_update_strings($component = NULL, $op = 'u
   else {
     $components = array((object) $component);
   }
-    module_load_include('inc', 'webform_structured_text', 'structured_text');
-    foreach ( $components as $component ) {
+  module_load_include('inc', 'webform_structured_text', 'structured_text');
+  foreach ( $components as $component ) {
     if ( !is_array($component->extra) ) {
     $component->extra = unserialize($component->extra);
     }
