@@ -262,7 +262,7 @@ function _webform_structured_text_regex_validate($element, &$form_state) {
  * @param array $form_state Current state of the form.
  */
 function _webform_structured_text_labels_validate($element, &$form_state) {
-    if ( !empty($element['#value']) ) {
+  if ( !empty($element['#value']) ) {
     $lines = array_filter(explode("\n", $element['#value']));
     foreach ( $lines as $line_number => $line ) {
       $parts = explode('|', $line, 2);
@@ -291,7 +291,7 @@ function _webform_structured_text_labels_validate($element, &$form_state) {
  * @param array $form_state Current state of the form.
  */
 function _webform_structured_text_placeholders_validate($element, &$form_state) {
-    if ( !empty($element['#value']) ) {
+  if ( !empty($element['#value']) ) {
     $lines = array_filter(explode("\n", $element['#value']));
     foreach ( $lines as $line_number => $line ) {
       $parts = explode('|', $line, 2);
@@ -468,15 +468,13 @@ function webform_validate_structured_text($element, $form_state) {
   // Now evaluate each text field.
   $mask_regex = array();
   if ( !empty($element['#mask_regex']) ) {
-    $mask_regex_lines = explode("\n", $element['#mask_regex']);
+    $mask_regex_lines = array_filter(explode("\n", $element['#mask_regex']));
     foreach ( $mask_regex_lines as $line ) {
-      if ( !empty($line) ) {
-        list($chunk, $message, $regex) = explode('|', $line, 3);
-        $mask_regex[$chunk] = array(
-          'message' => $message,
-          'regex' => $regex,
-        );
-      }
+      list($chunk, $message, $regex) = explode('|', $line, 3);
+      $mask_regex[$chunk] = array(
+        'message' => $message,
+        'regex' => $regex,
+      );
     }
   }
   $component = 0;  // Used to point the user to the correct chunk of the whole input field in error messages.
@@ -487,8 +485,8 @@ function webform_validate_structured_text($element, $form_state) {
       case '9':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && (
-                        preg_match('/[^0-9]/', $value)  ||
-                        strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                        preg_match('/[^0-9]/', $value) ||
+                        drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('digit');
           $error_n = t('digits');
         }
@@ -497,8 +495,8 @@ function webform_validate_structured_text($element, $form_state) {
       case 'a':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && (
-                        preg_match('/[^a-z]/i', $value)  ||
-                        strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                        preg_match('/[^a-z]/i', $value) ||
+                        drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('alpha character (a-z)');
           $error_n = t('alpha characters (a-z)');
         }
@@ -506,7 +504,7 @@ function webform_validate_structured_text($element, $form_state) {
 
       case 'x':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
-                $value != '' && ( strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                $value != '' && ( drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('character');
           $error_n = t('characters');
         }
@@ -639,7 +637,6 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
   }
 
   return $rows;
-
 }
 
 /**
@@ -723,7 +720,7 @@ function webform_structured_text_parse_mask($mask) {
       else {
         if ( $mask[$i] == ' ' ) {
           // Special treatment for spaces.  Start off a string of spaces with
-          // a non-breaking one, and then toggle between non-breaking and reagular
+          // a regular one, and then toggle between non-breaking and reagular
           // to achieve the spacing specified in the mask.
           if ( $i == 0 || $mask[$i-1] != ' ' ) { // Reset space character if it's the first in a series.
             $space = '&nbsp;';
@@ -772,13 +769,13 @@ function webform_structured_text_format_value($mask, $value, $component, $format
   $mask_array = is_array($mask) ? $mask : webform_structured_text_parse_mask($mask);
   $output = '';
   $start = 0;
-  foreach ( $mask_array as $details ) {
+  foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
       $output .= substr($value, $start, $details['length']);
       $start += $details['length'];
     }
     else {
-      $output .= _webform_structured_text_t("{$component['nid']}:{$component['cid']}:mask", $details['value']);
+      $output .= _webform_structured_text_t("{$component['nid']}:{$component['cid']}:mask:$part", $details['value']);
     }
   }
   return ( $format == 'html' ? check_plain($output) : $output );
@@ -826,14 +823,14 @@ function webform_structured_text_field_description($component) {
  * @return string The ordinal ending.
  */
 function _webform_structured_text_ordinal_suffix($num){
-    if ( $num < 4 || $num > 20 ){
-         switch ( $num % 10 ) {
-            case 1: return 'st';
-            case 2: return 'nd';
-            case 3: return 'rd';
-        }
+  if ( $num < 4 || $num > 20 ){
+    switch ( $num % 10 ) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
     }
-    return 'th';
+  }
+  return 'th';
 }
 
 /**

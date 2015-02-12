@@ -72,7 +72,7 @@ function webform_structured_text_i18n_string_info() {
  * Implements hook_i18n_string_list().
  */
 function webform_structured_text_i18n_string_list($group) {
-  if ($group == 'webform_structured_text' || $group == 'all') {
+  if ( $group == 'webform_structured_text' || $group == 'all' ) {
     module_load_include('inc', 'webform_structured_text', 'structured_text');
     $strings = array();
     $components = db_query("SELECT nid, cid, form_key, name, extra FROM webform_component WHERE type = 'structured_text'")->fetchAll();
@@ -80,21 +80,21 @@ function webform_structured_text_i18n_string_list($group) {
       $component->extra = unserialize($component->extra);
       // First, deal with the markup elements of the mask.
       if ( isset($component->extra['mask']) && !empty($component->extra['mask']) ) {
-      $mask = webform_structured_text_parse_mask($component->extra['mask']);
-      foreach ( $mask as $index => $part ) {
-        if ( $part['type'] == 'markup' ) {
-          $strings['webform_structured_text'][$component->nid][$component->cid]['mask'][$index] = $part['value'];
+        $mask = webform_structured_text_parse_mask($component->extra['mask']);
+        foreach ( $mask as $index => $part ) {
+          if ( $part['type'] == 'markup' ) {
+            $strings['webform_structured_text'][$component->nid][$component->cid]['mask'][$index] = $part['value'];
+          }
         }
-      }
       }
       // Next, the error messages in the RegEx
       if ( isset($component->extra['mask_regex']) && !empty($component->extra['mask_regex']) ) {
-      $regex = array_filter(explode("\n", $component->extra['mask_regex']));
-      foreach ( $regex as $line ) {
-        list($line_numb, $error_message, $pattern ) = explode('|', $line, 3);
-        $strings['webform_structured_text'][$component->nid][$component->cid]['regex'][$line_numb]['message'] = trim($error_message);
+        $regex = array_filter(explode("\n", $component->extra['mask_regex']));
+        foreach ( $regex as $line ) {
+          list($line_numb, $error_message, $pattern) = explode('|', $line, 3);
+          $strings['webform_structured_text'][$component->nid][$component->cid]['regex'][$line_numb]['message'] = trim($error_message);
+        }
       }
-    }
     }
     return $strings;
   }
@@ -128,26 +128,26 @@ function webform_structured_text_i18n_update_strings($component = NULL, $op = 'u
   module_load_include('inc', 'webform_structured_text', 'structured_text');
   foreach ( $components as $component ) {
     if ( !is_array($component->extra) ) {
-    $component->extra = unserialize($component->extra);
+      $component->extra = unserialize($component->extra);
     }
     // First, deal with the markup elements of the mask.
     if ( isset($component->extra['mask']) && !empty($component->extra['mask']) ) {
-    $mask = webform_structured_text_parse_mask($component->extra['mask']);
-    foreach ( $mask as $index => $part ) {
-      if ( $part['type'] == 'markup' ) {
-        $update_function("webform_structured_text:{$component->nid}:{$component->cid}:mask:$index", $part['value']);
+      $mask = webform_structured_text_parse_mask($component->extra['mask']);
+      foreach ( $mask as $index => $part ) {
+        if ( $part['type'] == 'markup' ) {
+          $update_function("webform_structured_text:{$component->nid}:{$component->cid}:mask:$index", $part['value']);
+        }
       }
-    }
     }
     // Next, the error messages in the RegEx
     if ( isset($component->extra['mask_regex']) && !empty($component->extra['mask_regex']) ) {
-    $regex = array_filter(explode("\n", $component->extra['mask_regex']));
-    foreach ( $regex as $line ) {
-      list($line_numb, $error_message, $pattern ) = explode('|', $line, 3);
-      $update_function("webform_structured_text:{$component->nid}:{$component->cid}:regex:$line_numb:message", trim($error_message));
+      $regex = array_filter(explode("\n", $component->extra['mask_regex']));
+      foreach ( $regex as $line ) {
+        list($line_numb, $error_message, $pattern) = explode('|', $line, 3);
+        $update_function("webform_structured_text:{$component->nid}:{$component->cid}:regex:$line_numb:message", trim($error_message));
+      }
     }
   }
-}
 }
 
 /**
