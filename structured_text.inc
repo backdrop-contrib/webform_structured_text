@@ -572,7 +572,12 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
  */
 function _webform_submit_structured_text($component, $value) {
   $combined_value = '';
-  foreach ( $value as $input ) {
+  $mask = webform_structured_text_parse_mask($component['extra']['mask']);
+  foreach ( $value as $chunk => $input ) {
+    $chunk = substr($chunk, 5);  // The array index starts with 'part-', so get rid of it.
+    if ( $mask[$chunk]['type'] == 'r' ) {                // If this is a regex chunk...
+      $input = str_pad($input, $mask[$chunk]['length']); // Pad it to the full length so as not to merge anything that may have come after.
+    }
     $combined_value .= $input;
   }
   return $combined_value;
@@ -749,7 +754,7 @@ function webform_structured_text_parse_value($mask, $value) {
   $start = 0;
   foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $value_array[$part] = drupal_substr($value, $start, $details['length']);
+      $value_array[$part] = trim(drupal_substr($value, $start, $details['length']));
       $start += $details['length'];
     }
   }
@@ -771,7 +776,7 @@ function webform_structured_text_format_value($mask, $value, $component, $format
   $start = 0;
   foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $output .= substr($value, $start, $details['length']);
+      $output .= trim(substr($value, $start, $details['length']));
       $start += $details['length'];
     }
     else {
