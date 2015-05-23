@@ -3,6 +3,8 @@
  * Include file for structured text component.
  **/
 
+define('WFST_PAD_CHARACTER', chr(31)); // ASCII Unit Separator
+
 /**
  * function to handle difference between version 3 and 4 of Webform.
  * @param string $prop The property needed.
@@ -62,6 +64,11 @@ function _webform_defaults_structured_text() {
 function _webform_theme_structured_text() {
   return array(
     'webform_structured_text' => array(
+      'render element' => 'element',
+      'file' => 'structured_text.inc',
+      'path' => drupal_get_path('module', 'webform_structured_text'),
+    ),
+    'webform_display_structured_text' => array(
       'render element' => 'element',
       'file' => 'structured_text.inc',
       'path' => drupal_get_path('module', 'webform_structured_text'),
@@ -554,7 +561,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
   return array(
     '#title' => $component['name'],
     '#weight' => $component['weight'],
-    '#theme' => 'webform_display_textfield',
+    '#theme' => 'webform_display_structured_text',
     '#theme_wrappers' => $format == 'html' ? array('webform_element') : array('webform_element_text'),
     '#post_render' => array('webform_element_wrapper'),
     '#field_prefix' => ( isset($component['extra']['field_prefix']) ? $component['extra']['field_prefix'] : '' ),
@@ -572,13 +579,16 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
  */
 function _webform_submit_structured_text($component, $value) {
   $combined_value = '';
-  $mask = webform_structured_text_parse_mask($component['extra']['mask']);
-  foreach ( $value as $chunk => $input ) {
-    $chunk = substr($chunk, 5);  // The array index starts with 'part-', so get rid of it.
-    if ( $mask[$chunk]['type'] == 'r' ) {                // If this is a regex chunk...
-      $input = str_pad($input, $mask[$chunk]['length']); // Pad it to the full length so as not to merge anything that may have come after.
+  if ( ( $empty_test = implode('', $value) ) && !empty($empty_test) ) {
+    $mask = webform_structured_text_parse_mask($component['extra']['mask']);
+    foreach ( $value as $chunk => $input ) {
+      $chunk = substr($chunk, 5);  // The array index starts with 'part-', so get rid of it.
+      if ( $mask[$chunk]['type'] == 'r' ) {                // If this is a regex chunk...
+        // Pad it to the full length so as not to merge anything that may have come after.
+        $input = str_pad($input, $mask[$chunk]['length'], WFST_PAD_CHARACTER);
+      }
+      $combined_value .= $input;
     }
-    $combined_value .= $input;
   }
   return $combined_value;
 }
@@ -593,6 +603,17 @@ function _webform_help_structured_text($section) {
   }
 }
 
+
+/**
+ * Format the output of data for this component.
+ */
+function theme_webform_display_structured_text($variables) {
+  $element = $variables['element'];
+  $prefix = $element['#format'] == 'html' ? '' : $element['#field_prefix'];
+  $suffix = $element['#format'] == 'html' ? '' : $element['#field_suffix'];
+  $value = $element['#format'] == 'html' ? str_replace('&amp;nbsp;', '&nbsp;', check_plain($element['#value'])) : $element['#value'];
+  return $value !== '' ? ($prefix . $value . $suffix) : ' ';
+}
 
 /**
  * Implements _webform_analysis_component.
@@ -754,7 +775,7 @@ function webform_structured_text_parse_value($mask, $value) {
   $start = 0;
   foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $value_array[$part] = trim(drupal_substr($value, $start, $details['length']));
+      $value_array[$part] = str_replace(WFST_PAD_CHARACTER, '', drupal_substr($value, $start, $details['length']));
       $start += $details['length'];
     }
   }
@@ -772,18 +793,20 @@ function webform_structured_text_parse_value($mask, $value) {
  */
 function webform_structured_text_format_value($mask, $value, $component, $format = 'html') {
   $mask_array = is_array($mask) ? $mask : webform_structured_text_parse_mask($mask);
+  $value = webform_structured_text_parse_value($mask_array, $value);
+  if ( ( $empty_test = implode('', $value) ) && ( empty($empty_test) ) ) {
+    return '';
+  }
   $output = '';
-  $start = 0;
   foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $output .= trim(substr($value, $start, $details['length']));
-      $start += $details['length'];
+      $output .= $value[$part];
     }
     else {
       $output .= _webform_structured_text_t("{$component['nid']}:{$component['cid']}:mask:$part", $details['value']);
     }
   }
-  return ( $format == 'html' ? check_plain($output) : $output );
+  return ( $format == 'html' ? str_replace('&amp;nbsp;', '&nbsp;', check_plain($output)) : $output );
 }
 
 /**
