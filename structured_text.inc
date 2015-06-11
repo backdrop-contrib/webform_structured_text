@@ -579,7 +579,7 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
  */
 function _webform_submit_structured_text($component, $value) {
   $combined_value = '';
-  if ( ( $empty_test = implode('', $value) ) && !empty($empty_test) ) {
+  if ( is_array($value) && ( $empty_test = implode('', $value) ) && !empty($empty_test) ) {
     $mask = webform_structured_text_parse_mask($component['extra']['mask']);
     foreach ( $value as $chunk => $input ) {
       $chunk = substr($chunk, 5);  // The array index starts with 'part-', so get rid of it.
