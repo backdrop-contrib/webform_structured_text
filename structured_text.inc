@@ -54,6 +54,7 @@ function _webform_defaults_structured_text() {
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
       'private' => FALSE,
+      'unique' => FALSE,
     ),
   );
 }
@@ -230,6 +231,15 @@ function _webform_edit_structured_text($component) {
     '#weight' => 4,
     '#parents' => array('extra', 'analysis_display_identifying'),
   );
+  $form['validation']['unique'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Unique'),
+    '#return_value' => 1,
+    '#description' => t('Check that all entered values for this field are unique. The same value is not allowed to be used twice.'),
+    '#weight' => 1,
+    '#default_value' => $component['extra']['unique'],
+    '#parents' => array('extra', 'unique'),
+  );
   return $form;
 }
 
@@ -352,6 +362,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#placeholders' => $component['extra']['placeholders'],
     '#auto_skip' => $component['extra']['auto_skip'],
     '#translatable' => array('title', 'description', 'mask_labels', 'placeholders',),
+    '#unique' => $component['extra']['unique'],
   );
 
   if (isset($value)) {
@@ -462,9 +473,11 @@ function webform_structured_text_expand_field($element) {
 function webform_validate_structured_text($element, $form_state) {
   // Gather the actual input.
   $chunks = array();
+  $had_pattern_errors = FALSE;
+  $unique_test_array = array();
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $chunks[$part] = $element['part-' . $part]['#value'];
+      $chunks[$part] = $unique_test_array['part-' . $part] = $element['part-' . $part]['#value'];
     }
   }
   // Determine if any input fields are missing.  If they're all empty, then they're not missing.
@@ -521,6 +534,7 @@ function webform_validate_structured_text($element, $form_state) {
         break;
     }
     if ( $error_1 ) {
+      $had_pattern_errors = TRUE;
       $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
       form_set_error($component_field,
               format_plural($element['#mask'][$part]['length'],
@@ -536,10 +550,35 @@ function webform_validate_structured_text($element, $form_state) {
     elseif ( ( $element['#required'] || !$missing_chunks && $numb_not_empty != 0 || $element['#mask'][$part]['type'] == 'r' ) &&
             !empty($mask_regex[$component]['regex']) ) { // no errors so far, and we have a regex, so test it
       if ( !preg_match(trim($mask_regex[$component]['regex']), $value) ) {
+        $had_pattern_errors = TRUE;
         $component_field = implode('][', array_merge($element['#parents'], array('part-' . $part,)));
         form_set_error($component_field, strip_tags(_webform_structured_text_t(
                 $element['#webform_component']['nid'] . ':' . $element['#webform_component']['cid'] . ":regex:$component:message",
                 $mask_regex[$component]['message'])));
+      }
+    }
+  }
+  if ( !$had_pattern_errors && $element['#unique'] ) {
+    $element['#value'] = _webform_submit_structured_text(array('extra' => array('mask' => $element['#mask']),), $unique_test_array);
+    if ( $element['#value'] !== '' ) {
+      $nid = $form_state['values']['details']['nid'];
+      $sid = $form_state['values']['details']['sid'];
+      $query = db_select('webform_submitted_data')
+        ->fields('webform_submitted_data', array('sid'))
+        ->condition('nid', $nid)
+        ->condition('cid', $element['#webform_component']['cid'])
+        ->condition('data', $element['#value'])
+        ->range(0, 1); // More efficient than using countQuery() for data checks.
+      if ( $sid ) {
+        $query->condition('sid', $sid, '<>');
+      }
+      $count = $query->execute()->fetchField();
+      if ( $count ) {
+        form_error($element, t('The value %value has already been submitted once for the %title field. You may have already submitted this form, or you need to use a different value.',
+                array(
+                  '%value' => webform_structured_text_format_value($element['#mask'], $element['#value'], $element['#webform_component']),
+                  '%title' => $element['#title'],
+                )));
       }
     }
   }
