@@ -1,0 +1,26 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/*
+    Created on : 23-Nov-2015, 9:00:49 AM
+    Author     : shawn
+*/
+
+div.structured-text-one-field {
+  border: 1px solid #CCC;
+  background: #FFF;
+  padding: 0.1875em;
+}
+
+div.structured-text-one-field input.structured-text {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+div.structured-text-one-field input.structured-text:focus {
+  background: #FFFFDF;
+  border-bottom: 1px dotted #FFCC00;
+}

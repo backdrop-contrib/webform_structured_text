@@ -51,6 +51,8 @@ function _webform_defaults_structured_text() {
       'mask_labels' => '',
       'description' => '',
       'placeholders' => '',
+      'centred' => FALSE,
+      'separate_boxes' => FALSE,
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
       'private' => FALSE,
@@ -137,7 +139,7 @@ function _webform_edit_structured_text($component) {
     '#description' => t('Check this box to show a description of the mask in the field\'s
           description area.  This will appear appended to the description you specify
           below (if any).  If you don\'t provide a description below and this box
-          is checked, the mask description will still show.' ),
+          is checked, the mask description will still show.'),
     '#weight' => -3.7,
   );
   $form['extra']['mask_regex'] = array(
@@ -182,7 +184,7 @@ function _webform_edit_structured_text($component) {
           2|Exchange<br>
           3|Number<br><br>
           If you don\'t specify mask labels, generic "<em>component_title</em>,
-          part <em>n</em>" labels will be used, where <em>n</em> is the chunk number.' ),
+          part <em>n</em>" labels will be used, where <em>n</em> is the chunk number.'),
     '#weight' => -3.55,
     '#element_validate' => array('_webform_structured_text_labels_validate',),
   );
@@ -191,12 +193,29 @@ function _webform_edit_structured_text($component) {
     '#title' => t('Placeholders'),
     '#default_value' => $component['extra']['placeholders'],
     '#description' => t('You can specify placeholders for each chunk using a
-          format similar to the Mask Labels validation.  Use the form<br><br>
+          format similar to the Mask Labels.  Use the form<br><br>
           <em>chunk-number</em>|<em>placeholder-text</em><br><br>For example<br><br>
           1|First Name<br>
-          2|Last Name' ),
+          2|Last Name'),
     '#weight' => -3.53,
     '#element_validate' => array('_webform_structured_text_placeholders_validate',),
+  );
+  $form['extra']['centre'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Centre-align input'),
+    '#default_value' => ( isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE ),
+    '#description' => t('Check to centre-align the text input in the field elements.'),
+    '#weight' => -3.52,
+  );
+  $form['extra']['separate_boxes'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Separate input box borders'),
+    '#default_value' => ( isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE ),
+    '#description' => t('Check to show borders around each of the field elements,
+            giving them the appearance of individual input boxes.  Otherwise, they will
+            all appear as if in one input box, with a light yellow background
+            on white while the element has focus.'),
+    '#weight' => -3.51,
   );
   $form['extra']['css_classes'] = array(
     '#type' => 'textfield',
@@ -230,6 +249,18 @@ function _webform_edit_structured_text($component) {
     '#options' => $other_components,
     '#weight' => 4,
     '#parents' => array('extra', 'analysis_display_identifying'),
+  );
+  $form['value'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Default value'),
+    '#default_value' => $component['value'],
+    '#description' => t('The default value of the field. You can specify default values for each chunk using a
+          format similar to the Mask Labels.  Use the form<br><br>
+          <em>chunk-number</em>|<em>default-value</em><br><br>For example<br><br>
+          1|Jane<br>
+          2|Doe<br><br>') . theme('webform_token_help'),
+    '#weight' => 2,
+    '#element_validate' => array('_webform_structured_text_default_value_validate',),
   );
   $form['validation']['unique'] = array(
     '#type' => 'checkbox',
@@ -332,12 +363,42 @@ function _webform_structured_text_placeholders_validate($element, &$form_state) 
 }
 
 /**
+ * Validate that any supplied Default Values are properly formed.
+ * @param array $element The form element holding the label lines.
+ * @param array $form_state Current state of the form.
+ */
+function _webform_structured_text_default_value_validate($element, &$form_state) {
+  if ( !empty($element['#value']) ) {
+    $lines = array_filter(explode("\n", $element['#value']));
+    foreach ( $lines as $line_number => $line ) {
+      $parts = explode('|', $line, 2);
+      $parts[1] = trim($parts[1]);
+      if ( count($parts) != 2 || empty($parts[1]) ) {
+        form_error($element, t('Line !line of the Default Value is ill-formed.
+                There must be two parts to each line, separaged by vertical bars / pipes.  Please
+                review the instructions for the Mask Labels and try again.',
+                array('!line' => $line_number + 1,)));
+      }
+      else {
+        if ( !is_numeric($parts[0]) || (int) $parts[0] != $parts[0] || $parts[0] < 1 ) {
+          form_error($element,t('Line !line of Default Value must start with
+                  a positive integer signifying the chunk number of the mask.  "@value" is
+                  not a valid chunk number.',
+                  array('!line' => $line_number + 1, '@value' => $parts[0],)));
+        }
+      }
+    }
+  }
+}
+
+/**
  * Implements _webform_render_component().
  */
 function _webform_render_structured_text($component, $value = NULL, $filter = FALSE) {
   $description = webform_structured_text_field_description($component);
   $xss_filter = _webform_structured_text_get_wf_property('filter_xss');
   $desc_filter = _webform_structured_text_get_wf_property('filter_desc');
+  $node = isset($component['nid']) ? node_load($component['nid']) : NULL;
   $form_item = array(
     '#type' => 'webform_structured_text',
     '#input' => TRUE,
@@ -355,6 +416,9 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#suffix' => '</div>',
     '#theme' => 'webform_structured_text',
     '#theme_wrappers' => array('webform_element'),
+    '#centre' => isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE,
+    '#separate_boxes' => isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE,
+    '#default_value' => $filter ? webform_replace_tokens($component['value'], $node) : $component['value'],
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
     '#mask_regex' => $component['extra']['mask_regex'],
@@ -362,7 +426,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#placeholders' => $component['extra']['placeholders'],
     '#auto_skip' => $component['extra']['auto_skip'],
     '#translatable' => array('title', 'description', 'mask_labels', 'placeholders',),
-    '#unique' => $component['extra']['unique'],
+    '#unique' => isset($component['extra']['unique']) ? $component['extra']['unique'] : FALSE,
   );
 
   if (isset($value)) {
@@ -396,6 +460,15 @@ function webform_structured_text_expand_field($element) {
       $placeholders[$chunk] = $placeholder;
     }
   }
+  $defaults = array();
+  if ( !empty($element['#default_value']) && is_string($element['#default_value']) ) {
+    $defaults_lines = array_filter(explode("\n", $element['#default_value']));
+    foreach ( $defaults_lines as $line ) {
+      list($chunk, $default_value) = explode('|', $line, 2);
+      $defaults[$chunk] = $default_value;
+    }
+    $element['#default_value'] = array();
+  }
   $chunk = 0;
 
   // For each part of the mask, the labels and placeholders as well as markup portions
@@ -405,6 +478,8 @@ function webform_structured_text_expand_field($element) {
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
       $chunk++;
+      $size = isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'];
+      $default_value = isset($element['#default_value'][$part]) ? $element['#default_value'][$part] : ( isset($defaults[$chunk]) ? $defaults[$chunk] : '' );
       $element['part-' . $part] = array(
         '#title' => ( empty($mask_labels[$chunk])
               ? t('!eltitle, part !chunk',
@@ -416,11 +491,12 @@ function webform_structured_text_expand_field($element) {
               : $mask_labels[$chunk] ),
         '#title_display' => 'invisible',
         '#type' => 'textfield',
-        '#size' => ( isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'] ),
+        '#size' => $size,
         '#maxlength' => $details['length'],
-        '#default_value' => ( isset($element['#default_value'][$part]) ? $element['#default_value'][$part] : '' ),
+        '#default_value' => $default_value,
         '#attributes' => array(
           'class' => array('structured-text part-' . $part,),
+          'style' => "width: {$size}em;" . ( $element['#centre'] ? 'text-align:center;' : '' ),
         ),
       );
       if ( !empty($placeholders[$chunk]) ) {
@@ -588,8 +664,13 @@ function webform_validate_structured_text($element, $form_state) {
  * Theme a webform structured text element.
  */
 function theme_webform_structured_text($variables) {
+  drupal_add_css(drupal_get_path('module', 'webform_structured_text') . '/webform_structured_text.css');
   $element = $variables['element'];
-  $output = '<div class="webform-container-inline">' . drupal_render_children($element) . '</div>';
+  $output = drupal_render_children($element);
+  if ( !$element['#separate_boxes'] ) {
+    $output = '<div class="structured-text-one-field">' . $output . '</div>';
+  }
+  $output = '<div class="webform-container-inline">' . $output . '</div>';
   return $output;
 }
 

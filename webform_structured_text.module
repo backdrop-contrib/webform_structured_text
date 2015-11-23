@@ -29,7 +29,7 @@ function webform_structured_text_webform_component_info() {
     'description' => t('A textfield type that uses an input mask, rendering the portions of the masked field as separate text fields.'),
     'features' => array(
       'csv' => TRUE,
-      'default_value' => FALSE,
+      'default_value' => TRUE,
       'description' => TRUE,
       'email' => TRUE,
       'email_address' => FALSE,
