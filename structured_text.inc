@@ -51,7 +51,7 @@ function _webform_defaults_structured_text() {
       'mask_labels' => '',
       'description' => '',
       'placeholders' => '',
-      'centred' => FALSE,
+      'centred' => TRUE,
       'separate_boxes' => FALSE,
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
@@ -203,7 +203,7 @@ function _webform_edit_structured_text($component) {
   $form['extra']['centre'] = array(
     '#type' => 'checkbox',
     '#title' => t('Centre-align input'),
-    '#default_value' => ( isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE ),
+    '#default_value' => ( isset($component['extra']['centre']) ? $component['extra']['centre'] : TRUE ),
     '#description' => t('Check to centre-align the text input in the field elements.'),
     '#weight' => -3.52,
   );
@@ -416,7 +416,7 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#suffix' => '</div>',
     '#theme' => 'webform_structured_text',
     '#theme_wrappers' => array('webform_element'),
-    '#centre' => isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE,
+    '#centre' => isset($component['extra']['centre']) ? $component['extra']['centre'] : TRUE,
     '#separate_boxes' => isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE,
     '#default_value' => $filter ? webform_replace_tokens($component['value'], $node) : $component['value'],
     '#element_validate' => array('webform_validate_structured_text'),
@@ -480,7 +480,7 @@ function webform_structured_text_expand_field($element) {
       $chunk++;
       $size = isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'];
       $default_value = isset($element['#default_value'][$part]) ? $element['#default_value'][$part] : ( isset($defaults[$chunk]) ? $defaults[$chunk] : '' );
-      $element['part-' . $part] = array(
+      $element["part-$part"] = array(
         '#title' => ( empty($mask_labels[$chunk])
               ? t('!eltitle, part !chunk',
                       array(
@@ -496,9 +496,11 @@ function webform_structured_text_expand_field($element) {
         '#default_value' => $default_value,
         '#attributes' => array(
           'class' => array('structured-text part-' . $part,),
-          'style' => "width: {$size}em;" . ( $element['#centre'] ? 'text-align:center;' : '' ),
         ),
       );
+      if ( $element['#centre'] ) {
+        $element["part-$part"]['#attributes']['style'] = 'text-align:center;';
+      }
       if ( !empty($placeholders[$chunk]) ) {
         $element['part-' .  $part]['#attributes']['placeholder'] = $placeholders[$chunk];
       }
