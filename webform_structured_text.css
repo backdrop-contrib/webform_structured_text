@@ -14,6 +14,12 @@ div.structured-text-one-field {
   padding: 0.1875em;
 }
 
+div.structured-text-one-field.error {
+  border: 1px solid #ed541d;
+  background: #FFF;
+  padding: 0.1875em;
+}
+
 div.structured-text-one-field input.structured-text {
   padding: 0;
   margin: 0;

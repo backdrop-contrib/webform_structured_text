@@ -393,6 +393,23 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
 }
 
 /**
+ * Helper function to split a setting text string into its corresponding array.
+ * @param string $setting The setting string in the form of key|value\nnext-key|next-value and so on.
+ * @return array The setting array.
+ */
+function _webform_structured_text_setting_to_array($setting) {
+  $array = array();
+  if ( !empty($setting) ) {
+    $lines = array_filter(explode("\n", $setting));
+    foreach ( $lines as $line ) {
+      list($chunk, $value) = explode('|', $line, 2);
+      $array[$chunk] = $value;
+    }
+  }
+  return $array;
+}
+
+/**
  * Form API #process function for Webform structured text fields.  Breaks up the
  * form element into the combination of mark-up and text input fields specified
  * in the mask.
@@ -400,29 +417,11 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
 function webform_structured_text_expand_field($element) {
   static $js_added = FALSE;
   $js_ids = array();
-  $mask_labels = array();
-  if ( !empty($element['#mask_labels']) ) {
-    $mask_labels_lines = array_filter(explode("\n", $element['#mask_labels']));
-    foreach ( $mask_labels_lines as $line ) {
-      list($chunk, $label) = explode('|', $line, 2);
-      $mask_labels[$chunk] = $label;
-    }
-  }
-  $placeholders = array();
-  if ( !empty($element['#placeholders']) ) {
-    $placeholders_lines = array_filter(explode("\n", $element['#placeholders']));
-    foreach ( $placeholders_lines as $line ) {
-      list($chunk, $placeholder) = explode('|', $line, 2);
-      $placeholders[$chunk] = $placeholder;
-    }
-  }
+  $mask_labels = _webform_structured_text_setting_to_array($element['#mask_labels']);
+  $placeholders = _webform_structured_text_setting_to_array($element['#placeholders']);
   $defaults = array();
   if ( !empty($element['#default_value']) && is_string($element['#default_value']) ) {
-    $defaults_lines = array_filter(explode("\n", $element['#default_value']));
-    foreach ( $defaults_lines as $line ) {
-      list($chunk, $default_value) = explode('|', $line, 2);
-      $defaults[$chunk] = $default_value;
-    }
+    $defaults = _webform_structured_text_setting_to_array($element['#default_value']);
     $element['#default_value'] = array();
   }
   $chunk = 0;
@@ -435,7 +434,9 @@ function webform_structured_text_expand_field($element) {
     if ( $details['type'] != 'markup' ) {
       $chunk++;
       $size = isset($details['size']) && $details['size'] > 0 ? $details['size'] : $details['length'];
-      $default_value = isset($element['#default_value'][$part]) ? $element['#default_value'][$part] : ( isset($defaults[$chunk]) ? $defaults[$chunk] : '' );
+      $default_value = isset($element['#default_value'][$part])
+              ? $element['#default_value'][$part]
+              : ( isset($defaults[$chunk]) ? $defaults[$chunk] : '' );
       $element["part-$part"] = array(
         '#title' => ( empty($mask_labels[$chunk])
               ? t('!eltitle, part !chunk',
@@ -463,7 +464,7 @@ function webform_structured_text_expand_field($element) {
       $js_ids[] = $part;
     }
     else {
-      $element['part-' . $part] = array(
+      $element["part-$part"] = array(
         '#type' => 'markup',
         '#markup' => strip_tags(_webform_structured_text_t(
                 $element['#webform_component']['nid'] . ':' . $element['#webform_component']['cid'] . ":mask:$part",
@@ -476,8 +477,8 @@ function webform_structured_text_expand_field($element) {
   if ( count($js_ids) > 1 && $element['#auto_skip'] ) {
     foreach ( $js_ids as $index => $id ) {
       if ( isset($js_ids[$index + 1]) ) {
-        $element['part-' . $id]['#attributes']['onkeyup'] = "webform_structured_text_jump(event, '{$element['#id']}-part-$id',
-          '{$element['#id']}-part-{$js_ids[$index + 1]}');";
+        $element["part-$id"]['#attributes']['onkeyup'] =
+                "webform_structured_text_jump(event, '{$element['#id']}-part-$id', '{$element['#id']}-part-{$js_ids[$index + 1]}');";
       }
     }
     if ( !$js_added ) {
@@ -511,12 +512,12 @@ function webform_validate_structured_text($element, $form_state) {
   $unique_test_array = array();
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $chunks[$part] = $unique_test_array['part-' . $part] = $element['part-' . $part]['#value'];
+      $chunks[$part] = $unique_test_array["part-$part"] = $element["part-$part"]['#value'];
     }
   }
   // Determine if any input fields are missing.  If they're all empty, then they're not missing.
   $numb_chunks = count($chunks);
-  $numb_not_empty = count(array_filter($chunks));
+  $numb_not_empty = count(array_filter($chunks, 'trim'));
   $numb_empty = $numb_chunks - $numb_not_empty;
   $missing_chunks = ( $numb_chunks != $numb_not_empty && $numb_chunks != $numb_empty );
   // Now evaluate each text field.
@@ -593,7 +594,7 @@ function webform_validate_structured_text($element, $form_state) {
     }
   }
   if ( !$had_pattern_errors && $element['#unique'] ) {
-    $element['#value'] = _webform_submit_structured_text(array('extra' => array('mask' => $element['#mask']),), $unique_test_array);
+    $element['#value'] = _webform_structured_text_create_store_value($element['#mask'], $unique_test_array);
     if ( $element['#value'] !== '' ) {
       $nid = $form_state['values']['details']['nid'];
       $sid = $form_state['values']['details']['sid'];
@@ -608,7 +609,8 @@ function webform_validate_structured_text($element, $form_state) {
       }
       $count = $query->execute()->fetchField();
       if ( $count ) {
-        form_error($element, t('The value %value has already been submitted once for the %title field. You may have already submitted this form, or you need to use a different value.',
+        form_error($element, t('The value %value has already been submitted once for the %title field.
+                You may have already submitted this form, or you need to use a different value.',
                 array(
                   '%value' => webform_structured_text_format_value($element['#mask'], $element['#value'], $element['#webform_component']),
                   '%title' => $element['#title'],
@@ -624,9 +626,10 @@ function webform_validate_structured_text($element, $form_state) {
 function theme_webform_structured_text($variables) {
   drupal_add_css(drupal_get_path('module', 'webform_structured_text') . '/webform_structured_text.css');
   $element = $variables['element'];
+  $has_error = form_get_error($element);
   $output = drupal_render_children($element);
   if ( !$element['#separate_boxes'] ) {
-    $output = '<div class="structured-text-one-field">' . $output . '</div>';
+    $output = '<div class="structured-text-one-field' . ( $has_error ?  ' error' : '' ) . '">' . $output . '</div>';
   }
   $output = '<div class="webform-container-inline">' . $output . '</div>';
   return $output;
@@ -656,9 +659,19 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
  * Implements _webform_submit_component().
  */
 function _webform_submit_structured_text($component, $value) {
+  $mask = webform_structured_text_parse_mask($component['extra']['mask']);
+  return _webform_structured_text_create_store_value($mask, $value);
+}
+
+/**
+ * Helper function to assemble the string to be stored.
+ * @param array $mask The mask for the structured text field.
+ * @param array $value The array of inptu values per the mask.
+ * @return string The combined input value for storage.
+ */
+function _webform_structured_text_create_store_value($mask, $value) {
   $combined_value = '';
   if ( is_array($value) && ( $empty_test = implode('', $value) ) && !empty($empty_test) ) {
-    $mask = webform_structured_text_parse_mask($component['extra']['mask']);
     foreach ( $value as $chunk => $input ) {
       $chunk = substr($chunk, 5);  // The array index starts with 'part-', so get rid of it.
       if ( $mask[$chunk]['type'] == 'r' ) {                // If this is a regex chunk...
@@ -942,7 +955,7 @@ function _webform_structured_text_ordinal_suffix($num){
 /**
  * Dummy function to help with translation.
  */
-function _webform_translate_dummy() {
+function _webform_structured_text_translate_dummy() {
   t('1st');
   t('2nd');
   t('3rd');
