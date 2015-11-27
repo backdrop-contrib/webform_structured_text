@@ -214,7 +214,7 @@ function _webform_edit_structured_text($component) {
     '#type' => 'checkbox',
     '#title' => t('Separate input box borders'),
     '#default_value' => ( isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE ),
-    '#description' => t('Check to show borders around each of the field elements,
+    '#description' => t('Check to show borders around each of the field chunks,
             giving them the appearance of individual input boxes.  Otherwise, they will
             all appear as if in one input box, with a light yellow background
             on white while the element has focus.'),
@@ -629,7 +629,7 @@ function theme_webform_structured_text($variables) {
   $has_error = form_get_error($element);
   $output = drupal_render_children($element);
   if ( !$element['#separate_boxes'] ) {
-    $output = '<div class="structured-text-one-field' . ( $has_error ?  ' error' : '' ) . '">' . $output . '</div>';
+    $output = '<div class="structured-text-one-field' . ( $has_error ?  ' has-error' : '' ) . '">' . $output . '</div>';
   }
   $output = '<div class="webform-container-inline">' . $output . '</div>';
   return $output;
