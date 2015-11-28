@@ -26,6 +26,7 @@ div.structured-text-one-field {
   padding: 0.1em;
   margin: 4px 0;
   line-height: normal;
+  display: inline-block !important;
 }
 
 /*  If your theme makes input text boxes appear different when the user hovers over
