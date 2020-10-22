@@ -21,8 +21,8 @@
     styles, padding, margins, and potentially the background.
 */
 div.structured-text-one-field {
-  border: 1px solid #CCC;
-  background: #FFF;
+  border: 0.125rem solid #d0d0d0;
+  background: #ffffff;
   padding: 0.1em;
   margin: 4px 0;
   line-height: normal;
@@ -40,7 +40,7 @@ div.structured-text-one-field:hover {
     input text boxes.
 */
 div.structured-text-one-field.has-error {
-  border: 1px solid #ed541d;
+  border: 2px solid #ed541d;
 }
 
 /*  You should not need to modify this selector's styles below.  They alter the
@@ -48,8 +48,6 @@ div.structured-text-one-field.has-error {
     not distinct from the larger field.
 */
 div.structured-text-one-field input.structured-text {
-  padding: 0 !important;
-  margin: 0 !important;
   border: none !important;
   background: transparent !important;
 }
@@ -61,6 +59,6 @@ div.structured-text-one-field input.structured-text {
     which light-coloured text would be difficult to read.
 */
 div.structured-text-one-field input.structured-text:focus {
-  background: #FFFFDF !important;
-  border-bottom: 1px dotted #FFCC00 !important;
+  background: #ffffdf !important;
+  border-bottom: 1px dotted #ffcc00 !important;
 }
