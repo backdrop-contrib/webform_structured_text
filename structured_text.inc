@@ -6,45 +6,13 @@
 define('WFST_PAD_CHARACTER', chr(31)); // ASCII Unit Separator
 
 /**
- * function to handle difference between version 3 and 4 of Webform.
- * @param string $prop The property needed.
- * @return string The property name to use elsewhere.
- */
-function _webform_structured_text_get_wf_property($prop = 'required') {
-  $info = system_get_info('module', 'webform');
-  $version = array();
-  preg_match('/^[0-9]+\.x\-([0-9]+)\..*$/', $info['version'], $version);
-  $properties = array(
-    'required' => array(
-      '3' => 'mandatory',
-      '4' => 'required',
-    ),
-    'filter_xss' => array(
-      '3' => '_webform_filter_xss',
-      '4' => 'webform_filter_xss',
-    ),
-    'filter_desc' => array(
-      '3' => '_webform_filter_descriptions',
-      '4' => 'webform_filter_descriptions',
-    ),
-    'token_replace' => array(
-      '3' => '_webform_filter_values',
-      '4' => 'webform_replace_tokens',
-    ),
-  );
-  if ( $prop == 'version' ) return $version[1];
-  return $properties[$prop][$version[1]];
-}
-
-
-/**
  * Implements _webform_defaults_component().
  */
 function _webform_defaults_structured_text() {
   return array(
     'name' => '',
     'form_key' => NULL,
-    _webform_structured_text_get_wf_property('required') => 0,
+    'required' => 0,
     'pid' => 0,
     'weight' => 0,
     'extra' => array(
@@ -73,12 +41,12 @@ function _webform_theme_structured_text() {
     'webform_structured_text' => array(
       'render element' => 'element',
       'file' => 'structured_text.inc',
-      'path' => drupal_get_path('module', 'webform_structured_text'),
+      'path' => backdrop_get_path('module', 'webform_structured_text'),
     ),
     'webform_display_structured_text' => array(
       'render element' => 'element',
       'file' => 'structured_text.inc',
-      'path' => drupal_get_path('module', 'webform_structured_text'),
+      'path' => backdrop_get_path('module', 'webform_structured_text'),
     ),
   );
 }
@@ -356,9 +324,9 @@ function _webform_structured_text_element_validate($element, &$form_state) {
  */
 function _webform_render_structured_text($component, $value = NULL, $filter = FALSE) {
   $description = webform_structured_text_field_description($component);
-  $xss_filter = _webform_structured_text_get_wf_property('filter_xss');
-  $desc_filter = _webform_structured_text_get_wf_property('filter_desc');
-  $replace_tokens = _webform_structured_text_get_wf_property('token_replace');
+  $xss_filter = 'webform_filter_xss';
+  $desc_filter = 'webform_filter_descriptions';
+  $replace_tokens = 'webform_replace_tokens';
   $node = isset($component['nid']) ? node_load($component['nid']) : NULL;
   $form_item = array(
     '#type' => 'webform_structured_text',
@@ -366,11 +334,10 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#title' => $filter ? $xss_filter($component['name']) : $component['name'],
     '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
     '#weight' => $component['weight'],
-    '#required' => $component[_webform_structured_text_get_wf_property('required')],
+    '#required' => $component['required'],
     '#description'   => $filter ? $desc_filter($description) : $description,
     '#process' => array('webform_structured_text_expand_field',),
     '#pre_render' => array('webform_element_title_display'),
-    '#post_render' => array('webform_element_wrapper'),
     '#prefix' => '<div class="webform-component-' . $component['type'] .
             ( !empty($component['extra']['css_classes']) ? ' ' . check_plain($component['extra']['css_classes']) : '' ) .
             '" id="webform-component-' . $component['form_key'] . '">',
@@ -433,7 +400,7 @@ function webform_structured_text_expand_field($element) {
 
   // For each part of the mask, the labels and placeholders as well as markup portions
   // of the mask are managed by webform_localization.  #title and #attributes are
-  // sanitised later in drupal_render, so no strip_tags of the user input is done
+  // sanitised later in backdrop_render, so no strip_tags of the user input is done
   // here.  However, the markup is not, so strip_tags is done on the translated string.
   foreach ( $element['#mask'] as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
@@ -496,7 +463,7 @@ function webform_structured_text_expand_field($element) {
                     }
                   }
                 }";
-      drupal_add_js($script, 'inline');
+      backdrop_add_js($script, 'inline');
       $js_added = TRUE;
     }
   }
@@ -546,7 +513,7 @@ function webform_validate_structured_text($element, $form_state) {
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && (
                         preg_match('/[^0-9]/', $value) ||
-                        drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                        backdrop_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('digit');
           $error_n = t('digits');
         }
@@ -556,7 +523,7 @@ function webform_validate_structured_text($element, $form_state) {
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
                 $value != '' && (
                         preg_match('/[^a-z]/i', $value) ||
-                        drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                        backdrop_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('alpha character (a-z)');
           $error_n = t('alpha characters (a-z)');
         }
@@ -564,7 +531,7 @@ function webform_validate_structured_text($element, $form_state) {
 
       case 'x':
         if ( ( $element['#required'] || $missing_chunks ) && $value == '' ||
-                $value != '' && ( drupal_strlen($value) < $element['#mask'][$part]['length'] ) ) {
+                $value != '' && ( backdrop_strlen($value) < $element['#mask'][$part]['length'] ) ) {
           $error_1 = t('character');
           $error_n = t('characters');
         }
@@ -629,10 +596,10 @@ function webform_validate_structured_text($element, $form_state) {
  * Theme a webform structured text element.
  */
 function theme_webform_structured_text($variables) {
-  drupal_add_css(drupal_get_path('module', 'webform_structured_text') . '/webform_structured_text.css');
+  backdrop_add_css(backdrop_get_path('module', 'webform_structured_text') . '/webform_structured_text.css');
   $element = $variables['element'];
   $has_error = form_get_error($element);
-  $output = drupal_render_children($element);
+  $output = backdrop_render_children($element);
   if ( !$element['#separate_boxes'] ) {
     $output = '<div class="structured-text-one-field' . ( $has_error ?  ' has-error' : '' ) . '">' . $output . '</div>';
   }
@@ -649,7 +616,6 @@ function _webform_display_structured_text($component, $value, $format = 'html') 
     '#weight' => $component['weight'],
     '#theme' => 'webform_display_structured_text',
     '#theme_wrappers' => $format == 'html' ? array('webform_element') : array('webform_element_text'),
-    '#post_render' => array('webform_element_wrapper'),
     '#field_prefix' => ( isset($component['extra']['field_prefix']) ? $component['extra']['field_prefix'] : '' ),
     '#field_suffix' => ( isset($component['extra']['field_suffix']) ? $component['extra']['field_suffix'] : '' ),
     '#component' => $component,
@@ -730,7 +696,7 @@ function _webform_analysis_structured_text($component, $sids = array(), $single 
 
   $result = $query->execute();
   foreach ( $result as $data ) {
-    if ( drupal_strlen(trim($data['data'])) > 0 ) {
+    if ( backdrop_strlen(trim($data['data'])) > 0 ) {
       $nonblanks++;
       if ( $component['extra']['analysis_display'] ) {
         if ( $component['extra']['analysis_display_identifying'] == '' ) {
@@ -795,7 +761,7 @@ function _webform_csv_data_structured_text($component, $export_options, $value) 
 function webform_structured_text_parse_mask($mask) {
   $mask_array = array();
   $mask = (string) $mask;
-  $mask_length = drupal_strlen($mask);
+  $mask_length = backdrop_strlen($mask);
   $where = '';
   $part = -1;
   for ( $i = 0 ; $i < $mask_length ; $i++ ) {
@@ -871,7 +837,7 @@ function webform_structured_text_parse_value($mask, $value) {
   $start = 0;
   foreach ( $mask_array as $part => $details ) {
     if ( $details['type'] != 'markup' ) {
-      $value_array[$part] = str_replace(WFST_PAD_CHARACTER, '', drupal_substr($value, $start, $details['length']));
+      $value_array[$part] = str_replace(WFST_PAD_CHARACTER, '', backdrop_substr($value, $start, $details['length']));
       $start += $details['length'];
     }
   }

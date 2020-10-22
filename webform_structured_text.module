@@ -7,18 +7,6 @@
  */
 
 /**
- * Implements hook_help().
- */
-function webform_structured_text_help($section = 'admin/help#webform_structured_text', $arg = NULL) {
-  switch ($section) {
-    case 'admin/help#webform_structured_text':
-      // Return a line-break version of the module README.txt
-      return nl2br(file_get_contents(drupal_get_path('module', 'webform_structured_text') . '/README.txt'));
-  }
-  return '';
-}
-
-/**
  * Implements hook_webform_component_info().
  */
 function webform_structured_text_webform_component_info() {
@@ -61,8 +49,9 @@ function webform_structured_text_webform_validator_alter(&$validators) {
   }
 }
 
-
-/**********************************
+/**
+ * @defgroup webform-structured-text-translations Translations
+ * @{
  * Translation-related functions.
  */
 
@@ -175,3 +164,6 @@ function webform_structured_text_i18n_string_refresh() {
   return TRUE;
 }
 
+/*
+ * @} End of "defgroup webform-structured-text-translations"
+ */
