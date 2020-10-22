@@ -23,8 +23,8 @@ function _webform_defaults_structured_text() {
       'mask_labels' => '',
       'description' => '',
       'placeholders' => '',
-      'centred' => TRUE,
-      'separate_boxes' => FALSE,
+      'centred' => FALSE,
+      'separate_boxes' => TRUE,
       'analysis_display' => FALSE,
       'analysis_display_identifying' => '',
       'private' => FALSE,
@@ -178,14 +178,14 @@ function _webform_edit_structured_text($component) {
   $form['extra']['centre'] = array(
     '#type' => 'checkbox',
     '#title' => t('Centre-align input'),
-    '#default_value' => ( isset($component['extra']['centre']) ? $component['extra']['centre'] : TRUE ),
+    '#default_value' => ( isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE ),
     '#description' => t('Check to centre-align the text input in the field elements.'),
     '#weight' => -3.52,
   );
   $form['extra']['separate_boxes'] = array(
     '#type' => 'checkbox',
     '#title' => t('Separate input box borders'),
-    '#default_value' => ( isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE ),
+    '#default_value' => ( isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : TRUE ),
     '#description' => t('Check to show borders around each of the field chunks,
             giving them the appearance of individual input boxes.  Otherwise, they will
             all appear as if in one input box, with a light yellow background
@@ -344,8 +344,8 @@ function _webform_render_structured_text($component, $value = NULL, $filter = FA
     '#suffix' => '</div>',
     '#theme' => 'webform_structured_text',
     '#theme_wrappers' => array('webform_element'),
-    '#centre' => isset($component['extra']['centre']) ? $component['extra']['centre'] : TRUE,
-    '#separate_boxes' => isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : FALSE,
+    '#centre' => isset($component['extra']['centre']) ? $component['extra']['centre'] : FALSE,
+    '#separate_boxes' => isset($component['extra']['separate_boxes']) ? $component['extra']['separate_boxes'] : TRUE,
     '#default_value' => $filter ? $replace_tokens($component['value'], $node) : $component['value'],
     '#element_validate' => array('webform_validate_structured_text'),
     '#mask' => webform_structured_text_parse_mask($component['extra']['mask']),
